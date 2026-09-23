@@ -27,6 +27,6 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
-Filename: "{sys}\cmd.exe"; Parameters: "/c ""{app}\INSTALL_BROWSER_INTEGRATION.bat"""; Description: "Register browser integration"; Flags: postinstall waituntilterminated skipifsilent
+Filename: "{sys}\cmd.exe"; Parameters: "/c ""{app}\INSTALL_BROWSER_INTEGRATION.bat"""; Description: "Register browser integration"; Flags: runhidden waituntilterminated skipifsilent
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\browser_extension"
