@@ -2,6 +2,7 @@ name: Build Windows Installer
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags: ['v*']
 permissions:
   contents: read
@@ -35,3 +36,4 @@ jobs:
           name: InternetDownloadManager-Windows-Installer
           path: installer-output\InternetDownloadManager_Setup.exe
           if-no-files-found: error
+
