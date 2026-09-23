@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Internet Download Manager Integration",
+  "version": "1.5.2.2",
+  "description": "Browser download integration with foreground File Info dialogs, live speed/ETA progress, tray-safe background downloads, and completion flow.",
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "nativeMessaging",
+    "downloads"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Download with Internet Download Manager",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0JrqD7yS0nX7yMyQf7YqA7MqZKJbjs1m/9TBOgD1MRNcO5dDlNaD7e7BOQTmyZuSM4cADTaZi4GZnoJ17la6YHWR+9+sa5JRuhX7HppD5zKvVDWDhRMR22508c/CqqnN8uoBJgPv2UYWiHIGAgKl3lNDLdGO3t20YR7Wr+TYEY8BpL3pFTfeQVaj8H3wwPUVx1rUI0l8dj1L+SxJp1w2TVNtHi2thS9JUF+bstgy+3CDCpvtNOGZjKUa3d4yIvw0fcPvXVtiJbF4WkaJiej64pqGWTVvJf6e52lPyRDT6pelH3X+z7+rqrIrcf+vQ0K2ixg43MGBNIO7zz5uUGcc4QIDAQAB",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

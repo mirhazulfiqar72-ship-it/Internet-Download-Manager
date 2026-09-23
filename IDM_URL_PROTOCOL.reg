@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\idm]
+@="URL:Internet Download Manager Protocol"
+"URL Protocol"=""
+
+[HKEY_CURRENT_USER\Software\Classes\idm\shell\open\command]
+@="\"C:\\Program Files\\Internet Download Manager\\InternetDownloadManager.exe\" \"%1\""
