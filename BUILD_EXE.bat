@@ -71,7 +71,6 @@ echo Run:
 echo dist\InternetDownloadManager\InternetDownloadManager.exe
 echo.
 echo IMPORTANT: Keep the complete InternetDownloadManager folder together.
-pause
 exit /b 0
 
 :venvfail
@@ -84,5 +83,4 @@ goto :fail
 :fail
 echo.
 echo BUILD FAILED
-pause
 exit /b 1
