@@ -1355,7 +1355,7 @@ class MainWindow(QMainWindow):
         from .media import MediaDownloadTask
         self.pauses[rid]=threading.Event()
         self.stops[rid]=threading.Event()
-        task = MediaDownloadTask(url,selector,folder,name,self.stops[rid],self.pauses[rid])
+        task = MediaDownloadTask(url,selector,folder,name,self.stops[rid],self.pauses[rid],connections=self.connections,speed_limit_kbps=self.speed_limit_kbps)
         task.signals.progress.connect(lambda p,s,e,st,dn,tt,r=rid:self.media_progress(r,p,s,e,dn,tt))
         task.signals.finished.connect(lambda final,r=rid:self.media_done(r,final))
         task.signals.failed.connect(lambda e,r=rid:self.media_failed(r,e))
@@ -1397,7 +1397,7 @@ class MainWindow(QMainWindow):
         self.pauses[rid]=threading.Event(); self.stops[rid]=threading.Event()
         self.media_selectors[rid]=(dlg.selected,path,name)
         QSettings('InternetDownloadManager','InternetDownloadManager').setValue(f'media_selector/{rid}',dlg.selected)
-        task=MediaDownloadTask(url,dlg.selected,path,name,self.stops[rid],self.pauses[rid])
+        task=MediaDownloadTask(url,dlg.selected,path,name,self.stops[rid],self.pauses[rid],connections=self.connections,speed_limit_kbps=self.speed_limit_kbps)
         task.signals.progress.connect(lambda p,s,e,st,dn,tt,r=rid:self.media_progress(r,p,s,e,dn,tt))
         task.signals.finished.connect(lambda final,r=rid:self.media_done(r,final)); task.signals.failed.connect(lambda e,r=rid:self.media_failed(r,e)); self.tasks[rid]=task; self.pool.start(task)
     def media_progress(self,rid,p,s,e,downloaded=0,total=0):
@@ -1499,7 +1499,7 @@ class MainWindow(QMainWindow):
                 if rid in self.media_selectors:
                     from .media import MediaDownloadTask
                     selector, folder, name = self.media_selectors[rid]
-                    task=MediaDownloadTask(rr['url'],selector,folder,name,self.stops[rid],self.pauses[rid])
+                    task=MediaDownloadTask(rr['url'],selector,folder,name,self.stops[rid],self.pauses[rid],connections=self.connections,speed_limit_kbps=self.speed_limit_kbps)
                     task.signals.progress.connect(lambda p,s,e,st,dn,tt,r=rid:self.media_progress(r,p,s,e,dn,tt))
                     task.signals.finished.connect(lambda final,r=rid:self.media_done(r,final))
                     task.signals.failed.connect(lambda e,r=rid:self.media_failed(r,e))

@@ -26,6 +26,10 @@ def filename_from_response(url, response):
     return safe_filename(name or "download")
 
 
+class RangeUnsupported(IOError):
+    pass
+
+
 class DownloadSignals(QObject):
     progress = Signal(int, int, float, float)
     status = Signal(str, str)
@@ -54,6 +58,10 @@ class DownloadTask(QRunnable):
         self.signals=DownloadSignals()
         self._lock=threading.RLock(); self._last_emit=0.0; self._last_bytes=0
         self._started=time.monotonic()
+        self._metadata_total=0
+        self._range_disabled=False
+        self._range_abort=threading.Event()
+        self._aggregate_bytes=0
 
     def run(self):
         rid,url,path=self.row['id'],self.row['url'],Path(self.row['path'])
@@ -61,7 +69,13 @@ class DownloadTask(QRunnable):
             if self.stop_event.is_set(): self.signals.stopped.emit(); return
             try:
                 self._check_disk(path.parent)
-                if self._supports_segmented(url): self._segmented(rid,url,path)
+                if not self._range_disabled and self.connections>1 and self._supports_segmented(url):
+                    try:
+                        self._segmented(rid,url,path)
+                    except RangeUnsupported:
+                        self._range_disabled=True
+                        self._single(rid,url,path)
+                        shutil_rmtree(self._part_dir(path))
                 else: self._single(rid,url,path)
                 return
             except Exception as exc:
@@ -121,7 +135,8 @@ class DownloadTask(QRunnable):
                     return False
                 length=r.headers.get('Content-Length')
                 accept=r.headers.get('Accept-Ranges','').lower()
-                if length and int(length)>0 and accept=='bytes':
+                if length and int(length)>1024*1024 and accept=='bytes':
+                    self._metadata_total=int(length)
                     return True
         except (requests.RequestException, ValueError):
             pass
@@ -147,7 +162,7 @@ class DownloadTask(QRunnable):
 
     def _segmented(self,rid,url,path):
         path.parent.mkdir(parents=True,exist_ok=True)
-        total=self._total_size(url)
+        total=self._metadata_total or self._total_size(url)
         if total<=0 or self.connections<=1: return self._single(rid,url,path)
         partdir=self._part_dir(path); partdir.mkdir(parents=True,exist_ok=True)
         n=min(self.connections,max(2,math.ceil(total/(8*1024*1024))))
@@ -156,6 +171,10 @@ class DownloadTask(QRunnable):
             start=(total*i)//n; end=(total*(i+1))//n-1
             ranges.append((i,start,end))
         self.row['total']=total
+        self._range_abort.clear()
+        self._aggregate_bytes=self._parts_size(partdir,ranges)
+        self._last_bytes=self._aggregate_bytes
+        self._last_emit=time.monotonic()
         self.storage.update(rid,status='Downloading',total=total,downloaded=self._parts_size(partdir,ranges))
         self.signals.status.emit('Downloading',f'Multi-connection: {n} connections')
         with ThreadPoolExecutor(max_workers=n,thread_name_prefix='idm-range') as ex:
@@ -194,32 +213,38 @@ class DownloadTask(QRunnable):
         offset=start+existing; headers={**REQUEST_HEADERS,'Range':f'bytes={offset}-{end}'}
         with requests.get(url,headers=headers,stream=True,timeout=(15,60),allow_redirects=True) as r:
             if r.status_code!=206:
+                if r.status_code==200:
+                    self._range_abort.set()
+                    raise RangeUnsupported('Server ignored HTTP Range')
+                r.raise_for_status()
                 raise IOError(f'Server did not honor HTTP Range (HTTP {r.status_code})')
             cr=r.headers.get('Content-Range','')
-            if not re.match(rf'^bytes\s+{offset}-\d+/\d+$', cr, re.I):
+            if not re.match(rf'^bytes\s+{offset}-{end}/{self._current_total}$', cr, re.I):
                 raise IOError('Server returned an invalid Content-Range response')
             with open(part,'ab') as f:
-                for chunk in r.iter_content(256*1024):
-                    if self.stop_event.is_set() or self.pause_event.is_set(): return
+                for chunk in r.iter_content(1024*1024):
+                    if self.stop_event.is_set() or self.pause_event.is_set() or self._range_abort.is_set(): return
                     if not chunk:continue
-                    f.write(chunk); self._emit_aggregate(partdir)
+                    f.write(chunk); self._emit_aggregate(len(chunk))
         if part.stat().st_size!=expected: raise IOError(f'Incomplete segment {index+1}')
 
     def _parts_size(self,partdir,ranges):
         return sum(min((partdir/f'part-{i:02d}.bin').stat().st_size if (partdir/f'part-{i:02d}.bin').exists() else 0,end-start+1) for i,start,end in ranges)
 
-    def _emit_aggregate(self,partdir):
-        now=time.monotonic()
-        if now-self._last_emit<0.2:return
-        # Segment files are small; aggregate size is cheap at UI cadence.
-        total=0
-        for p in partdir.glob('part-*.bin'): total+=p.stat().st_size
-        speed=(total-self._last_bytes)/max(now-self._last_emit,0.001) if self._last_emit else 0
-        self._last_emit=now; self._last_bytes=total
-        rid=self.row['id']; expected=self._current_total
-        eta=(expected-total)/speed if speed>0 else 0
-        self.storage.update(rid,status='Downloading',downloaded=total,total=expected)
-        self.signals.progress.emit(total,expected,speed,eta)
+    def _emit_aggregate(self,received):
+        # Count received bytes in memory; only one worker publishes each UI tick.
+        # Avoid repeatedly scanning/stat-ing all segment files on the hot path.
+        with self._lock:
+            self._aggregate_bytes+=received
+            now=time.monotonic()
+            if now-self._last_emit<0.2:return
+            total=self._aggregate_bytes
+            speed=max(0,total-self._last_bytes)/max(now-self._last_emit,0.001)
+            self._last_emit=now; self._last_bytes=total
+            rid=self.row['id']; expected=self._current_total
+            eta=(expected-total)/speed if speed>0 else 0
+            self.storage.update(rid,status='Downloading',downloaded=total,total=expected)
+            self.signals.progress.emit(total,expected,speed,eta)
 
     @property
     def _current_total(self):
@@ -243,12 +268,12 @@ class DownloadTask(QRunnable):
             mode='ab' if existing and supports else 'wb'; downloaded=existing
             started=time.monotonic(); last_t=started; last_b=downloaded
             with open(path,mode) as f:
-                for chunk in r.iter_content(256*1024):
+                for chunk in r.iter_content(1024*1024):
                     if self.stop_event.is_set(): self.storage.update(rid,status='Stopped',downloaded=downloaded,total=total); self.signals.stopped.emit(); return
                     if self.pause_event.is_set(): self.storage.update(rid,status='Paused',downloaded=downloaded,total=total); self.signals.status.emit('Paused','Resume available'); return
                     if not chunk:continue
                     if self.speed_limit_bps:
-                        elapsed=time.monotonic()-started; expected=downloaded/max(self.speed_limit_bps,1)
+                        elapsed=time.monotonic()-started; expected=(downloaded-existing)/max(self.speed_limit_bps,1)
                         if expected>elapsed:time.sleep(min(expected-elapsed,2.0))
                     f.write(chunk); downloaded+=len(chunk); now=time.monotonic()
                     if now-last_t>=0.2:

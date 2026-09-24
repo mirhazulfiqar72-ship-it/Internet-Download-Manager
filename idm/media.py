@@ -61,13 +61,15 @@ class DownloadCancelled(Exception):
     pass
 
 class MediaDownloadTask(QRunnable):
-    def __init__(self, url, format_id, output_dir, target_name='media', stop_event=None, pause_event=None):
+    def __init__(self, url, format_id, output_dir, target_name='media', stop_event=None, pause_event=None, connections=4, speed_limit_kbps=0):
         super().__init__()
         self.url, self.format_id, self.output_dir = url, format_id, Path(output_dir)
         self.target_name = str(target_name or 'media')
         self.stop_event = stop_event or threading.Event()
         self.pause_event = pause_event or threading.Event()
         self.signals = MediaSignals()
+        self.connections=max(1,min(16,int(connections)))
+        self.speed_limit_bps=max(0,int(speed_limit_kbps))*1024
 
     def _fresh_template(self):
         # Browser media must never silently reuse an old yt-dlp output. Reusing
@@ -145,6 +147,9 @@ class MediaDownloadTask(QRunnable):
                 "progress_hooks": [hook], "merge_output_format": ("mkv" if str(self.format_id).startswith("preset-video:") and str(self.format_id).split(":", 1)[1].isdigit() and int(str(self.format_id).split(":", 1)[1]) >= 1440 else "mp4"),
                 "overwrites": False,
                 "continuedl": True,
+                "concurrent_fragment_downloads": self.connections,
+                "buffersize": 1024*1024,
+                "ratelimit": self.speed_limit_bps or None,
                 "nopart": False,
             }
             locked=unpack_selector(self.format_id)
