@@ -30,7 +30,9 @@ class MediaInfoTask(QRunnable):
 
     def run(self):
         try:
-            opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+            from .options_config import load_options, media_options
+            media_cfg=load_options()
+            opts = {**media_options(self.url,media_cfg), "quiet": True, "no_warnings": True, "skip_download": True}
             with yt_dlp.YoutubeDL({**runtime_options(), **opts}) as ydl:
                 info = ydl.extract_info(self.url, download=False)
             formats = []
@@ -140,7 +142,9 @@ class MediaDownloadTask(QRunnable):
                     key = str(d.get("filename") or d.get("info_dict", {}).get("format_id") or "stream")
                     completed_streams[key] = int(d.get("downloaded_bytes") or d.get("total_bytes") or 0)
                     # Final completion is emitted only after all streams are merged.
-            opts = {
+            from .options_config import load_options, media_options
+            media_cfg=load_options()
+            opts = {**media_options(self.url,media_cfg),
                 "format": self._format_selector(),
                 "outtmpl": self._fresh_template(),
                 "noplaylist": True, "quiet": True, "no_warnings": True,

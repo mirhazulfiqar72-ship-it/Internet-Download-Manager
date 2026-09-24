@@ -58,6 +58,8 @@ class DownloadTask(QRunnable):
         self.signals=DownloadSignals()
         self._lock=threading.RLock(); self._last_emit=0.0; self._last_bytes=0
         self._started=time.monotonic()
+        from .options_config import load_options
+        self.options=load_options()
         self._metadata_total=0
         self._range_disabled=False
         self._range_abort=threading.Event()
@@ -126,11 +128,15 @@ class DownloadTask(QRunnable):
         actual=h.hexdigest().lower()
         return actual==self.expected_hash, actual
 
+    def _http_kwargs(self,url,headers=None):
+        from .options_config import request_kwargs
+        data=request_kwargs(url,self.options); data['headers']=headers or dict(REQUEST_HEADERS); return data
+
     def _supports_segmented(self,url):
         # Prefer server metadata. A Range probe can itself trigger anti-bot/rate
         # limits and was causing false failures on otherwise downloadable files.
         try:
-            with requests.head(url, headers=REQUEST_HEADERS, timeout=(12,25), allow_redirects=True) as r:
+            with requests.head(url, timeout=(12,25), allow_redirects=True, **self._http_kwargs(url)) as r:
                 if not r.ok:
                     return False
                 length=r.headers.get('Content-Length')
@@ -144,13 +150,13 @@ class DownloadTask(QRunnable):
 
     def _total_size(self,url):
         try:
-            with requests.head(url, headers=REQUEST_HEADERS, timeout=(12,25), allow_redirects=True) as r:
+            with requests.head(url, timeout=(12,25), allow_redirects=True, **self._http_kwargs(url)) as r:
                 if r.ok and r.headers.get('Content-Length'):
                     return int(r.headers['Content-Length'])
         except (requests.RequestException, ValueError):
             pass
         # A one-byte Range request is only used when HEAD does not expose size.
-        with requests.get(url, headers={**REQUEST_HEADERS,'Range':'bytes=0-0'}, stream=True, timeout=(12,30), allow_redirects=True) as r:
+        with requests.get(url, stream=True, timeout=(12,30), allow_redirects=True, **self._http_kwargs(url,{**REQUEST_HEADERS,'Range':'bytes=0-0'})) as r:
             r.raise_for_status()
             cr=r.headers.get('Content-Range','')
             m=re.match(r'^bytes\s+\d+-\d+/(\d+)$',cr,re.I)
@@ -211,7 +217,7 @@ class DownloadTask(QRunnable):
         if existing>expected: part.unlink(); existing=0
         if existing==expected:return
         offset=start+existing; headers={**REQUEST_HEADERS,'Range':f'bytes={offset}-{end}'}
-        with requests.get(url,headers=headers,stream=True,timeout=(15,60),allow_redirects=True) as r:
+        with requests.get(url,stream=True,timeout=(15,60),allow_redirects=True,**self._http_kwargs(url,headers)) as r:
             if r.status_code!=206:
                 if r.status_code==200:
                     self._range_abort.set()
@@ -255,7 +261,7 @@ class DownloadTask(QRunnable):
         headers=dict(REQUEST_HEADERS)
         if existing:headers['Range']=f'bytes={existing}-'
         self.signals.status.emit('Connecting','')
-        with requests.get(url,headers=headers,stream=True,timeout=(15,60),allow_redirects=True) as r:
+        with requests.get(url,stream=True,timeout=(15,60),allow_redirects=True,**self._http_kwargs(url,headers)) as r:
             r.raise_for_status(); supports=r.status_code==206
             if existing and not supports: existing=0
             cr=r.headers.get('Content-Range','')

@@ -15,6 +15,7 @@ from .storage import Storage, DEFAULT_DIR
 from .downloader import DownloadTask, filename_from_response, safe_filename
 from .settings import AppSettings
 from .release import VERSION, UPDATE_MANIFEST_URL
+from .options_dialog import SettingsDialog
 import requests
 import hashlib, socket
 
@@ -186,8 +187,9 @@ class AddDialog(QDialog):
         return next((category for category,extensions in groups.items() if ext in extensions),None)
 
     def _set_category_folder(self, category):
-        subfolder={'Video':'Video','Audio':'Music','Documents':'Documents','Archives':'Compressor'}.get(category,'')
-        folder=Path(DEFAULT_DIR)/subfolder if subfolder else Path(DEFAULT_DIR)
+        from .options_config import category_settings
+        configured=category_settings(category).get('folder','')
+        folder=Path(configured or DEFAULT_DIR).expanduser()
         try: folder.mkdir(parents=True,exist_ok=True)
         except OSError: pass  # Start/Download Later reports an unwritable folder.
         name=self.filename.text().strip() or Path(self.save_as.text()).name
@@ -399,7 +401,7 @@ class PropertiesDialog(QDialog):
         actual=h.hexdigest()
         QMessageBox.information(self,'Checksum verification','SHA-256 MATCH' if actual==expected else f'SHA-256 MISMATCH\n\nExpected: {expected}\nActual: {actual}')
 
-class SettingsDialog(QDialog):
+class LegacySettingsDialog(QDialog):
     def __init__(self,parent,settings):
         super().__init__(parent); self.setWindowTitle('Download Settings'); self.resize(400,270); lay=QFormLayout(self)
         self.maxdl=QSpinBox(); self.maxdl.setRange(1,20); self.maxdl.setValue(settings.max_downloads); lay.addRow('Maximum simultaneous downloads:',self.maxdl)
@@ -1146,6 +1148,10 @@ class MainWindow(QMainWindow):
     def handle_browser_request(self, payload):
         """Handle every extension download request through the normal desktop dialog flow."""
         try:
+            from .options_config import load_options
+            if not load_options().get('integration', True):
+                self.statusBar().showMessage('Browser integration is disabled in Options')
+                return
             action = str(payload.get('action',''))
             url = str(payload.get('url','')).strip()
             if not re.match(r'^https?://', url, re.I):
@@ -1174,6 +1180,11 @@ class MainWindow(QMainWindow):
 
     def download_direct_url(self, url, show_file_info=True):
         """Handle a direct browser file/media URL through Download File Info."""
+        from .options_config import load_options, matches
+        options=load_options()
+        if matches(url, options.get('excluded_sites','')) or matches(url, options.get('excluded_urls','')):
+            self.statusBar().showMessage('Download skipped by Options exclusions')
+            return
         if not re.match(r'^https?://', url or '', re.I):
             return
         from urllib.parse import urlparse, unquote
@@ -1182,7 +1193,7 @@ class MainWindow(QMainWindow):
         ext = Path(name).suffix.lower()
         category = AddDialog._category_for_filename(name) or 'Other'
 
-        if show_file_info:
+        if show_file_info and options.get('show_start',True):
             d=AddDialog(None,url)
             d.setWindowIcon(self.windowIcon())
             d.filename.setText(name)
@@ -1284,6 +1295,10 @@ class MainWindow(QMainWindow):
         """Browser quality selection -> File Info -> Progress -> Complete."""
         if not re.match(r'^https?://', url or '', re.I):
             QMessageBox.warning(self,'Invalid URL','Please enter a valid HTTP/HTTPS URL.')
+            return
+        from .options_config import load_options, matches
+        if matches(url, load_options().get('excluded_sites','')) or matches(url, load_options().get('excluded_urls','')):
+            QMessageBox.information(self,'Download blocked','This address is excluded in Options.')
             return
         kind = 'audio' if str(kind).lower() == 'audio' else 'video'
         quality = str(quality or 'best').lower()
@@ -1424,6 +1439,7 @@ class MainWindow(QMainWindow):
         if dlg: dlg.update_live(downloaded,total,speed,eta,'Downloading')
         self.statusBar().showMessage(f'Media {pct:.1f}%  •  {self.speed_text(speed)}')
     def media_done(self,rid,path):
+        from .options_config import sound_event, scan_file
         self.live_telemetry.pop(rid,None)
         expected_total=int(self.media_expected_totals.get(rid,0) or 0)
         size=Path(path).stat().st_size if Path(path).exists() else 0
@@ -1442,10 +1458,21 @@ class MainWindow(QMainWindow):
 
         self.media_expected_totals.pop(rid,None)
         display_total=expected_total or size
-        self.storage.update(rid,status='Completed',path=str(path),filename=Path(path).name,downloaded=size,total=display_total); self.tasks.pop(rid,None); self.update_row(rid,status='Completed',downloaded=size,total=display_total); self.notify('Download completed',Path(path).name); self.statusBar().showMessage(f'Media completed: {path}'); self.close_progress_dialog(rid); QTimer.singleShot(0, lambda r=rid: self.show_download_complete(r))
+        self.storage.update(rid,status='Completed',path=str(path),filename=Path(path).name,downloaded=size,total=display_total); self.tasks.pop(rid,None); self.update_row(rid,status='Completed',downloaded=size,total=display_total); self.notify('Download completed',Path(path).name);
+        try: sound_event('Download complete')
+        except Exception: pass
+        try: scan_file(path)
+        except Exception: pass
+        self.statusBar().showMessage(f'Media completed: {path}'); self.close_progress_dialog(rid);
+        from .options_config import load_options
+        if load_options().get('show_complete',True): QTimer.singleShot(0, lambda r=rid: self.show_download_complete(r))
     def media_failed(self,rid,e):
+        from .options_config import sound_event
         self.live_telemetry.pop(rid,None)
         msg=str(e)
+        try:
+            if msg != '__IDM_PAUSED__': sound_event('Download failed')
+        except Exception: pass
         self.tasks.pop(rid,None)
         if msg=='__IDM_PAUSED__':
             self.storage.update(rid,status='Paused',error='')
@@ -1504,7 +1531,7 @@ class MainWindow(QMainWindow):
                     task.signals.finished.connect(lambda final,r=rid:self.media_done(r,final))
                     task.signals.failed.connect(lambda e,r=rid:self.media_failed(r,e))
                 else:
-                    task=DownloadTask(rr,self.storage,self.stops[rid],self.pauses[rid],self.speed_limit_kbps,int(rr['connections'] or self.connections),int(self.settings.max_retries))
+                    task=DownloadTask(rr,self.storage,self.stops[rid],self.pauses[rid],self.speed_limit_kbps,__import__('idm.options_config',fromlist=['connection_count']).connection_count(rr['url'],int(rr['connections'] or self.connections)),int(self.settings.max_retries))
                 if rid not in self.media_selectors:
                     task.signals.progress.connect(lambda d,t,s,e,r=rid:self.download_progress(r,d,t,s,e))
                     task.signals.status.connect(lambda st,msg,r=rid:self.task_status(r,st,msg))
@@ -1641,7 +1668,16 @@ class MainWindow(QMainWindow):
         for rid in ids:self.storage.update(rid,status='Retrying',error='')
         self.refresh_all_rows();self.start_ids(ids)
     def task_done(self,rid):
-        rr=self.storage.get(rid);self.tasks.pop(rid,None);self.pauses.pop(rid,None);self.stops.pop(rid,None);self.update_row(rid,status='Completed');self.notify('Download completed',rr['filename'] if rr else 'Download'); self.close_progress_dialog(rid); QTimer.singleShot(0, lambda r=rid: self.show_download_complete(r))
+        from .options_config import load_options, sound_event, scan_file
+        rr=self.storage.get(rid);self.tasks.pop(rid,None);self.pauses.pop(rid,None);self.stops.pop(rid,None);self.update_row(rid,status='Completed');self.notify('Download completed',rr['filename'] if rr else 'Download');
+        if rr:
+            try: sound_event('Download complete')
+            except Exception: pass
+            try: scan_file(rr['path'])
+            except Exception: pass
+        self.close_progress_dialog(rid);
+        from .options_config import load_options
+        if load_options().get('show_complete',True): QTimer.singleShot(0, lambda r=rid: self.show_download_complete(r))
     def close_progress_dialog(self,rid):
         dlg=self.progress_dialogs.pop(rid,None)
         if dlg:
@@ -1659,6 +1695,7 @@ class MainWindow(QMainWindow):
             dlg=DownloadCompleteDialog(None,dict(rr)); dlg.setWindowIcon(self.windowIcon())
             dlg.setWindowFlag(Qt.WindowStaysOnTopHint,True); dlg.show(); dlg.raise_(); dlg.activateWindow(); dlg.exec()
     def task_failed(self,rid,err):
+        from .options_config import sound_event
         rr=self.storage.get(rid);self.tasks.pop(rid,None);self.pauses.pop(rid,None);self.stops.pop(rid,None);self.storage.update(rid,status='Failed',error=str(err));self.update_row(rid,status='Failed');self.notify('Download failed',rr['filename'] if rr else str(err));self.statusBar().showMessage(str(err)); QMessageBox.critical(self,'Download failed',str(err))
     def task_stopped(self,rid):self.tasks.pop(rid,None);self.pauses.pop(rid,None);self.stops.pop(rid,None);self.update_row(rid,status='Stopped')
     def redownload_selected(self):
@@ -1916,10 +1953,29 @@ class MainWindow(QMainWindow):
         QApplication.instance().setProperty('really_quit',True); QApplication.instance().quit()
     def show_settings(self):
         d=SettingsDialog(self,self.settings)
-        if d.exec()==QDialog.Accepted:
-            self.settings.q.setValue('duplicate_action',d.duplicate.currentData())
-            self.max_downloads=max(1,min(20,d.maxdl.value()));self.auto_start=d.auto.isChecked();self.speed_limit_kbps=max(0,d.speed.value());self.notifications=d.notify.isChecked();self.minimize_to_tray=d.tray.isChecked()
-            self.connections=d.connections.value();self.settings.max_downloads=self.max_downloads;self.settings.auto_start=self.auto_start;self.settings.speed_limit_kbps=self.speed_limit_kbps;self.settings.connections=self.connections;self.settings.max_retries=d.retries.value();self.settings.notifications=self.notifications;self.settings.minimize_to_tray=self.minimize_to_tray;self.statusBar().showMessage('Settings saved')
+        d.applied.connect(self._settings_applied)
+        d.exec()
+
+    def _settings_applied(self):
+        from .options_config import load_options, sound_event
+        options=load_options()
+        self.max_downloads=max(1,min(20,self.settings.max_downloads))
+        self.auto_start=self.settings.auto_start
+        self.speed_limit_kbps=max(0,self.settings.speed_limit_kbps)
+        self.notifications=self.settings.notifications
+        self.minimize_to_tray=self.settings.minimize_to_tray
+        self.connections=max(1,min(16,self.settings.connections))
+        self.statusBar().showMessage('Options saved')
+        # Existing progress windows immediately follow the saved visibility preferences.
+        for dlg in self.progress_dialogs.values():
+            if not options.get('progress_speed',True):
+                if dlg.tabs.count()>1: dlg.tabs.setTabVisible(1,False)
+            if not options.get('progress_completion',True):
+                if dlg.tabs.count()>2: dlg.tabs.setTabVisible(2,False)
+            dlg.details.setVisible(bool(options.get('progress_details',True)))
+        if options.get('progress_view')=='System tray':
+            for dlg in list(self.progress_dialogs.values()): dlg.minimize_to_tray()
+
     def show_about(self):QMessageBox.about(self,'About',f'Internet Download Manager\nVersion {VERSION}\n\nWindows download manager with HTTP/HTTPS downloads, resume, queues and media support.')
     def changeEvent(self,event):
         super().changeEvent(event)

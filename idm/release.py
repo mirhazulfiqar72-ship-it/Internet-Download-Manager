@@ -1,2 +1,2 @@
-VERSION = '1.5.7'
+VERSION = '1.5.8'
 UPDATE_MANIFEST_URL = 'https://api.github.com/repos/mirhazulfiqar72-ship-it/Internet-Download-Manager/releases/latest'
