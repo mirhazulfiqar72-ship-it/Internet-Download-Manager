@@ -428,6 +428,14 @@ class DownloadProgressDialog(QDialog):
         self.setAttribute(Qt.WA_DeleteOnClose, False)
         self.setWindowTitle('Download progress'); self.resize(600,460); self.setModal(False)
         self.setWindowIcon(self._download_icon())
+        self.download_tray=QSystemTrayIcon(self)
+        self.download_tray.setIcon(self._tray_download_icon())
+        self.download_tray.setToolTip('Download progress')
+        tray_menu=QMenu(self)
+        tray_menu.addAction('Show download progress',self.restore_progress)
+        self.download_tray.setContextMenu(tray_menu)
+        self.download_tray.activated.connect(lambda reason: self.restore_progress() if reason in (QSystemTrayIcon.Trigger,QSystemTrayIcon.DoubleClick) else None)
+        QApplication.instance().aboutToQuit.connect(self.download_tray.hide)
         root=QVBoxLayout(self); root.setContentsMargins(1,1,1,1); root.setSpacing(0)
         self.titlebar=QFrame(); self.titlebar.setObjectName('downloadTitleBar'); self.titlebar.setFixedHeight(34)
         self.titlebar.installEventFilter(self); self._drag_offset=None
@@ -495,13 +503,30 @@ class DownloadProgressDialog(QDialog):
                 return True
         return super().eventFilter(obj,event)
 
+    @staticmethod
+    def _tray_download_icon():
+        pm=QPixmap(32,32); pm.fill(Qt.transparent)
+        painter=QPainter(pm); painter.setRenderHint(QPainter.Antialiasing)
+        for x,y in ((4,21),(12,14),(20,7)):
+            painter.setPen(QPen(QColor('#075525'),1))
+            painter.setBrush(QColor('#25ce45'))
+            painter.drawPolygon(QPolygonF([QPointF(x,y-5),QPointF(x+9,y),QPointF(x,y+5)]))
+        painter.end()
+        return QIcon(pm)
+
     def minimize_to_tray(self):
+        row=self.owner.storage.get(self.rid)
+        self.download_tray.setToolTip(('Download: '+str(row['filename']))[:127] if row else 'Download progress')
+        self.download_tray.show()
         self.hide()
-        try:
-            if self.owner.tray and self.owner.tray.isVisible():
-                self.owner.tray.showMessage('Internet Download Manager','Download continues in the background. Open the main window to restore progress.',QSystemTrayIcon.Information,2500)
-        except Exception:
-            pass
+
+    def restore_progress(self):
+        self.showNormal(); self.raise_(); self.activateWindow()
+
+    def showEvent(self,event):
+        self.download_tray.hide()
+        super().showEvent(event)
+
     def toggle_maximize(self):
         if self.isMaximized():
             self.showNormal(); self.max_btn.setText('□')
@@ -513,6 +538,7 @@ class DownloadProgressDialog(QDialog):
         super().changeEvent(event)
     def closeEvent(self,event):
         # Closing the progress window must not cancel the download.
+        self.download_tray.hide()
         event.accept()
 
     def refresh_static(self):
@@ -891,19 +917,15 @@ class MainWindow(QMainWindow):
             b.setFixedSize(64,50) if compact else b.setFixedSize(72,64)
 
     def setup_tray(self):
-        self.tray=QSystemTrayIcon(self); self.tray.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)); self.tray.setToolTip('Internet Download Manager')
-        menu=QMenu(); menu.addAction('Show Main Window',self.showNormal); menu.addAction('Show Download Windows',self.restore_download_windows); menu.addAction('Add URL',lambda checked=False: self.add_url()); menu.addAction('Pause All',self.pause_all); menu.addAction('Resume All',self.resume_all); menu.addSeparator(); menu.addAction('Exit',QApplication.quit); self.tray.setContextMenu(menu); self.tray.activated.connect(lambda reason:self.restore_from_tray() if reason==QSystemTrayIcon.Trigger else None); self.tray.show()
+        self.tray=QSystemTrayIcon(self); self.tray.setIcon(QIcon(str(Path(__file__).resolve().parent.parent/'assets'/'app_icon.png'))); self.tray.setToolTip('Internet Download Manager')
+        menu=QMenu(); menu.addAction('Show Main Window',self.restore_from_tray); menu.addAction('Show Download Windows',self.restore_download_windows); menu.addAction('Add URL',lambda checked=False: self.add_url()); menu.addAction('Pause All',self.pause_all); menu.addAction('Resume All',self.resume_all); menu.addSeparator(); menu.addAction('Exit',QApplication.quit); self.tray.setContextMenu(menu); self.tray.activated.connect(lambda reason:self.restore_from_tray() if reason==QSystemTrayIcon.Trigger else None); self.tray.show()
     def restore_download_windows(self):
         shown=False
         for dlg in self.progress_dialogs.values():
             if dlg and not dlg.isVisible(): dlg.showNormal(); dlg.raise_(); dlg.activateWindow(); shown=True
         if not shown: self.showNormal(); self.raise_(); self.activateWindow()
     def restore_from_tray(self):
-        hidden=[d for d in self.progress_dialogs.values() if d and not d.isVisible()]
-        if hidden:
-            d=hidden[-1]; d.showNormal(); d.raise_(); d.activateWindow()
-        else:
-            self.showNormal(); self.raise_(); self.activateWindow()
+        self.showNormal(); self.raise_(); self.activateWindow()
     def apply_style(self):
         self.setStyleSheet("""
         QMainWindow, QWidget{background:#f2f2f2;color:#111;font-family:'Segoe UI';font-size:8.5pt;}
@@ -1627,6 +1649,7 @@ class MainWindow(QMainWindow):
                 dlg.sync_timer.stop()
             except Exception:
                 pass
+            dlg.download_tray.hide()
             dlg.hide()
             dlg.deleteLater()
 
@@ -1865,10 +1888,24 @@ class MainWindow(QMainWindow):
             if self._update_auto and self._notified_version==remote:return
             self._notified_version=remote
             url=data.get('installer_url','')
-            if QMessageBox.question(self,'Update available',f'Internet Download Manager {remote} is available.\nCurrent version: {VERSION}\n\nDownload the installer now?',QMessageBox.Yes|QMessageBox.No)==QMessageBox.Yes:
-                from PySide6.QtGui import QDesktopServices
-                from PySide6.QtCore import QUrl
-                QDesktopServices.openUrl(QUrl(url))
+            existing=getattr(self,'_update_dialog',None)
+            if existing and existing.isVisible():
+                existing.raise_(); existing.activateWindow(); return
+            dialog=QMessageBox(QMessageBox.Information,'Update available',
+                f'Internet Download Manager {remote} is available.\nCurrent version: {VERSION}',
+                QMessageBox.NoButton, None)
+            dialog.setWindowIcon(self.tray.icon())
+            download=dialog.addButton('Download update',QMessageBox.AcceptRole)
+            dialog.addButton('Later',QMessageBox.RejectRole)
+            dialog.setDefaultButton(download)
+            def selected(button):
+                if button is download:
+                    from PySide6.QtGui import QDesktopServices
+                    from PySide6.QtCore import QUrl
+                    QDesktopServices.openUrl(QUrl(url))
+            dialog.buttonClicked.connect(selected)
+            self._update_dialog=dialog
+            dialog.show(); dialog.raise_(); dialog.activateWindow()
         elif not self._update_auto:QMessageBox.information(self,'No update','You are using the latest version.')
     def update_failed(self,error):
         self._update_busy=False
@@ -1887,6 +1924,7 @@ class MainWindow(QMainWindow):
     def changeEvent(self,event):
         super().changeEvent(event)
         if event.type() == QEvent.Type.WindowStateChange and self.isMinimized() and self.minimize_to_tray:
+            self.tray.show()
             QTimer.singleShot(0,self.hide)
     def closeEvent(self,event):
         if self.minimize_to_tray and self.tray.isVisible() and not QApplication.instance().property('really_quit'):
