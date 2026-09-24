@@ -1,0 +1,26 @@
+name: Publish Windows Installer Release
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-installer.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download successful installer build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh run download 35893643184 --name InternetDownloadManager-Windows-Installer --dir installer
+          test -s installer/InternetDownloadManager_Setup.exe
+      - name: Publish installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create v1.5.2 installer/InternetDownloadManager_Setup.exe --target 8a188124daa210b1ac2f1c036c89bc6af1088135 --title "Internet Download Manager 1.5.2" --notes "Windows installer with bundled application files, Control Panel uninstall support, and corrected silent native browser integration registration. Browser extension installation remains separate; this installer does not silently install the extension." --latest
