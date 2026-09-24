@@ -122,6 +122,18 @@ def native_host_main():
         return 1
 
 
+if '--verify-media-runtime' in sys.argv:
+    from pathlib import Path
+    from idm.media_runtime import verify_runtime
+    result_path = Path(sys.argv[sys.argv.index('--verify-media-runtime') + 1])
+    try:
+        result_path.write_text(json.dumps(verify_runtime()), encoding='utf-8')
+    except Exception as exc:
+        result_path.write_text(json.dumps({'error': str(exc)}), encoding='utf-8')
+        raise SystemExit(1)
+    raise SystemExit(0)
+
+
 if _is_native_host_invocation(sys.argv):
     raise SystemExit(native_host_main())
 

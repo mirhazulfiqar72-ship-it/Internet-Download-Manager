@@ -15,6 +15,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -25,8 +28,16 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python tests/smoke_ui.py
+      - name: Verify media extraction dependencies
+        run: python tests/test_media_runtime.py
       - name: Build portable application
         run: cmd /c BUILD_EXE.bat
+      - name: Bundle YouTube JavaScript runtime
+        shell: pwsh
+        run: |
+          Copy-Item (Get-Command node.exe).Source dist/InternetDownloadManager/node.exe
+          Invoke-WebRequest https://raw.githubusercontent.com/nodejs/node/v22.x/LICENSE -OutFile dist/InternetDownloadManager/NODE-LICENSE.txt
+          python tests/test_packaged_media.py
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
       - name: Build Control Panel installer
@@ -49,5 +60,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           $version = python -c "from idm.release import VERSION; print(VERSION)"
-          gh release create "v$version" installer-output/InternetDownloadManager_Setup.exe --target "$env:GITHUB_SHA" --title "Internet Download Manager $version" --notes "Fix browser content-script messaging and reconnect open tabs after extension reload. Existing unpacked extension installations must be reloaded to activate the updated extension files. No application UI changes." --latest
+          gh release create "v$version" installer-output/InternetDownloadManager_Setup.exe --target "$env:GITHUB_SHA" --title "Internet Download Manager $version" --notes "Bundle the YouTube JavaScript runtime and challenge solver for video extraction. Preserve extracted qualities if optional size caching fails and report the actual extraction error. No UI layout changes." --latest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

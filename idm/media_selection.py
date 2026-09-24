@@ -1,3 +1,4 @@
+from .media_runtime import runtime_options
 """One format decision shared by File Info and the download worker."""
 import json
 
@@ -126,7 +127,7 @@ def resolve_selection(url, quality, kind):
     cached=cached_selection(url,quality,kind)
     if cached: return cached
     import yt_dlp
-    with yt_dlp.YoutubeDL({'quiet':True,'no_warnings':True,'noplaylist':True,
+    with yt_dlp.YoutubeDL({**runtime_options(), 'quiet':True,'no_warnings':True,'noplaylist':True,
             'format':preset_selector(quality,kind),'socket_timeout':15}) as ydl:
         info=ydl.extract_info(url,download=False)
     fill_reported_sizes(info)
@@ -149,7 +150,7 @@ def prepare_format_sizes(url, info, rows):
                 def debug(self,*args): pass
                 def warning(self,*args): pass
                 def error(self,*args): pass
-            with yt_dlp.YoutubeDL({'quiet':True,'no_warnings':True,'logger':QuietLogger(),
+            with yt_dlp.YoutubeDL({**runtime_options(), 'quiet':True,'no_warnings':True,'logger':QuietLogger(),
                     'format':preset_selector(quality),'noplaylist':True}) as ydl:
                 selected=ydl.process_ie_result(copy.deepcopy(base),download=False)
             fill_reported_sizes(selected)

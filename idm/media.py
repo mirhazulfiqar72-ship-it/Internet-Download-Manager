@@ -1,3 +1,4 @@
+from .media_runtime import runtime_options
 from .media_selection import preset_selector, unpack_selector, verify_height, cached_download_info
 
 from PySide6.QtCore import QObject, Signal, QRunnable
@@ -30,11 +31,8 @@ class MediaInfoTask(QRunnable):
     def run(self):
         try:
             opts = {"quiet": True, "no_warnings": True, "skip_download": True}
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = cached_download_info(self.url,locked) if locked else None
-                used_cache = info is not None
-                if info is None:
-                    info = ydl.extract_info(self.url, download=False)
+            with yt_dlp.YoutubeDL({**runtime_options(), **opts}) as ydl:
+                info = ydl.extract_info(self.url, download=False)
             formats = []
             for f in info.get("formats", []):
                 if not f.get("url"): continue
@@ -153,7 +151,7 @@ class MediaDownloadTask(QRunnable):
             if locked: opts['merge_output_format']=locked['ext']
             ffmpeg = _ffmpeg_exe()
             if ffmpeg: opts["ffmpeg_location"] = ffmpeg
-            with yt_dlp.YoutubeDL(opts) as ydl:
+            with yt_dlp.YoutubeDL({**runtime_options(), **opts}) as ydl:
                 info = cached_download_info(self.url,locked) if locked else None
                 used_cache = info is not None
                 if info is None:

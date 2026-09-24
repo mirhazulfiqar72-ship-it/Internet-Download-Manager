@@ -1,3 +1,4 @@
+from .media_runtime import runtime_options
 """Actual available resolutions for the browser dropdown."""
 import re
 
@@ -31,17 +32,20 @@ def probe_formats(url):
             def debug(self, *args): pass
             def warning(self, *args): pass
             def error(self, *args): pass
-        with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True,
+        with yt_dlp.YoutubeDL({**runtime_options(), 'quiet': True, 'no_warnings': True,
                 'logger': QuietLogger(), 'skip_download': True, 'noplaylist': True,
                 'socket_timeout': 12, 'retries': 0, 'extractor_retries': 0}) as ydl:
             info = ydl.extract_info(url, download=False)
         rows = rows_from_info(info or {})
         if rows:
             from .media_selection import prepare_format_sizes
-            prepare_format_sizes(url,info,rows)
+            try:
+                prepare_format_sizes(url,info,rows)
+            except Exception:
+                pass  # Size caching must not hide successfully extracted qualities.
         return {'ok': bool(rows), 'application': 'InternetDownloadManager',
                 'title': (info or {}).get('title') or 'Video', 'formats': rows,
                 'error': '' if rows else 'No downloadable video resolutions detected. Click again to retry.'}
-    except Exception:
+    except Exception as exc:
         return {'ok': False, 'application': 'InternetDownloadManager',
-                'error': 'Could not read this video. Check the connection or video access and retry.'}
+                'error': 'Could not read this video: ' + str(exc).removeprefix('ERROR: ').strip()[:500]}
