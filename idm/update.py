@@ -14,6 +14,11 @@ class UpdateTask(QRunnable):
             req=urllib.request.Request(self.url, headers={'User-Agent':'OriginalDownloadManager/1.0'})
             with urllib.request.urlopen(req, timeout=self.timeout) as r:
                 data=json.loads(r.read().decode('utf-8'))
+            if 'tag_name' in data:
+                assets=data.get('assets',[])
+                url=next((a['browser_download_url'] for a in assets if a['name']=='InternetDownloadManager_Setup.exe'),'')
+                if not url: raise ValueError('Release installer is not available yet')
+                data={'version':data['tag_name'].lstrip('v'),'installer_url':url}
             self.signals.checked.emit(data)
         except Exception as e:
             self.signals.failed.emit(str(e))

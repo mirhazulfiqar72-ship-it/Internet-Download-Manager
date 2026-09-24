@@ -102,8 +102,10 @@ class MediaDownloadTask(QRunnable):
             last_done = 0
             last_time = time.monotonic()
             smooth_speed = 0.0
+            last_emit = 0.0
+            completed_streams = {}
             def hook(d):
-                nonlocal last_done, last_time, smooth_speed
+                nonlocal last_done, last_time, smooth_speed, last_emit
                 # yt-dlp only yields control to us through progress hooks.
                 # Raising DownloadCancelled stops the active network transfer
                 # immediately enough for Stop/Cancel/Pause to be real controls.
@@ -113,8 +115,10 @@ class MediaDownloadTask(QRunnable):
                     raise DownloadPaused('Paused by user')
                 status = d.get("status")
                 if status == "downloading":
-                    done = int(d.get("downloaded_bytes") or 0)
-                    total = int(d.get("total_bytes") or d.get("total_bytes_estimate") or 0)
+                    stream_key = str(d.get("filename") or d.get("info_dict", {}).get("format_id") or "stream")
+                    offset = sum(v for k,v in completed_streams.items() if k != stream_key)
+                    done = offset + int(d.get("downloaded_bytes") or 0)
+                    total = offset + int(d.get("total_bytes") or d.get("total_bytes_estimate") or 0)
                     now = time.monotonic()
                     reported = float(d.get("speed") or 0.0)
                     dt, db = now-last_time, done-last_done
@@ -127,14 +131,15 @@ class MediaDownloadTask(QRunnable):
                     eta = d.get("eta")
                     if eta is None and total > done and smooth_speed > 0:
                         eta = int((total-done)/smooth_speed)
+                    if now-last_emit < 0.2:return
+                    last_emit=now
                     self.signals.progress.emit(pct, float(smooth_speed or reported or 0.0),
                                                str(int(eta)) if eta is not None else "",
                                                "Downloading", done, total)
                 elif status == "finished":
-                    done = int(d.get("downloaded_bytes") or last_done or 0)
-                    total = int(d.get("total_bytes") or d.get("total_bytes_estimate") or done or 0)
-                    self.signals.progress.emit(100.0, float(smooth_speed or 0.0), "0",
-                                               "Processing", done, total)
+                    key = str(d.get("filename") or d.get("info_dict", {}).get("format_id") or "stream")
+                    completed_streams[key] = int(d.get("downloaded_bytes") or d.get("total_bytes") or 0)
+                    # Final completion is emitted only after all streams are merged.
             opts = {
                 "format": self._format_selector(),
                 "outtmpl": self._fresh_template(),

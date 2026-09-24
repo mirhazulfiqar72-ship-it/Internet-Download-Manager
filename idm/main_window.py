@@ -8,7 +8,7 @@ from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QPen, QColor, QBrus
 from PySide6.QtWidgets import (QFileIconProvider,
     QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,QLineEdit,QApplication,
     QTableWidget,QTableWidgetItem,QHeaderView,QMessageBox,QDialog,QFormLayout,
-    QDialogButtonBox,QFileDialog,QComboBox,QStatusBar,QMenu,QSpinBox,QCheckBox,QDateTimeEdit,
+    QDialogButtonBox,QFileDialog,QInputDialog,QComboBox,QStatusBar,QMenu,QSpinBox,QCheckBox,QDateTimeEdit,
     QSystemTrayIcon,QToolButton,QStyle,QTreeWidget,QTreeWidgetItem,QFrame,QProgressBar,QTabWidget,QGroupBox
 )
 from .storage import Storage, DEFAULT_DIR
@@ -528,13 +528,17 @@ class DownloadProgressDialog(QDialog):
         if not r:return
         st=str(r['status']); d=int(r['downloaded'] or 0); t=int(r['total'] or 0); pct=int(1000*d/t) if t else 0
         percent=int(100*d/t) if t else 0; self.setWindowTitle(f"{percent}% {r['filename']}")
-        self.state.setText('Receiving data...' if st=='Downloading' else st); self.size_lbl.setText(self.owner.size(t)); self.done_lbl.setText(self.owner.size(d)); self.resume_lbl.setText('Yes' if st in ('Downloading','Paused','Retrying','Connecting') else ('Completed' if st=='Completed' else '--'))
+        self.state.setText('Receiving data...' if st=='Downloading' else st); self.size_lbl.setText(self.owner.size(t)); self.done_lbl.setText(f'{self.owner.size(d)} ({(d*100/t):.2f}%)' if t else self.owner.size(d)); self.resume_lbl.setText('Yes' if st in ('Downloading','Paused','Retrying','Connecting') else ('Completed' if st=='Completed' else '--'))
         self.bar.setValue(pct); self.connection_bar.setValue(pct)
         if st=='Paused': self.action_btn.setText('Start')
         elif st in ('Completed','Failed','Stopped'): self.action_btn.setText('Start'); self.action_btn.setEnabled(st!='Completed')
         else: self.action_btn.setText('Pause'); self.action_btn.setEnabled(True)
         self.cancel_btn.setText('Cancel')
     def update_live(self,downloaded,total,speed,eta,status='Downloading'):
+        previous=getattr(self,'_display_speed',None)
+        speed=float(speed or 0)
+        if status=='Downloading' and previous is not None:speed=previous*0.75+speed*0.25
+        self._display_speed=speed
         r0=self.owner.storage.get(self.rid); percent=int(100*downloaded/total) if total else 0
         if r0: self.setWindowTitle(f"{percent}% {r0['filename']}")
         shown='Receiving data...' if status=='Downloading' else status; self.state.setText(shown); self.size_lbl.setText(self.owner.size(total)); self.done_lbl.setText(f'{self.owner.size(downloaded)} ({(downloaded*100/total):.2f}%)' if total else self.owner.size(downloaded)); self.speed_lbl.setText(self.owner.speed_text(speed)); self.live_speed.setText(self.owner.speed_text(speed)); self.eta_lbl.setText(self.owner.eta_text(eta)); pct=int(1000*downloaded/total) if total else 0; self.bar.setValue(pct); self.connection_bar.setValue(pct)
@@ -577,6 +581,9 @@ class MainWindow(QMainWindow):
         self.timer=QTimer(self); self.timer.timeout.connect(self.queue_tick); self.timer.start(1500)
         self.clip_timer=QTimer(self); self.clip_timer.timeout.connect(self.check_clipboard); self.clip_timer.start(2000); self.last_clipboard_url=''
         QTimer.singleShot(0, self.showMaximized)
+        self._update_busy=False; self._update_auto=False; self._notified_version=''
+        QTimer.singleShot(8000,lambda:self.check_updates(automatic=True))
+        self.update_timer=QTimer(self); self.update_timer.timeout.connect(lambda:self.check_updates(automatic=True)); self.update_timer.start(4*60*60*1000)
         if startup_url:
             if startup_mode == 'media' and startup_quality:
                 QTimer.singleShot(350, lambda u=startup_url,q=startup_quality,k=startup_kind,t=startup_title:self.download_media_preset(u,q,k,t))
@@ -706,7 +713,8 @@ class MainWindow(QMainWindow):
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.context_menu)
-        self.table.doubleClicked.connect(self.details)
+        self.table.doubleClicked.connect(self.double_click_action)
+        move_action=QAction(self);move_action.setShortcut('Ctrl+M');move_action.triggered.connect(self.move_rename);self.addAction(move_action)
         main.addWidget(self.table,1)
         body.addLayout(main,1)
         root.addLayout(body,1)
@@ -983,10 +991,12 @@ class MainWindow(QMainWindow):
         vals=self._classic_row_values(rr,speed or 0,eta or 0)
         if total is not None: vals[2]=self.size(total)
         if status is not None: vals[3]=status
+        sorting=self.table.isSortingEnabled();self.table.setSortingEnabled(False)
         for c,v in enumerate(vals):
             item=self.table.item(i,c)
-            if item:item.setText(v)
+            if item and item.text()!=v:item.setText(v)
         if self.table.item(i,3): self.table.item(i,3).setToolTip(str(rr['error'] or ''))
+        self.table.setSortingEnabled(sorting)
         self.refresh_visibility()
     def selected_ids(self): return [self.table.item(i,0).data(Qt.UserRole) for i in sorted({x.row() for x in self.table.selectedIndexes()})]
     def _duplicate_target(self,url,path,selector=''):
@@ -1538,7 +1548,7 @@ class MainWindow(QMainWindow):
         if len(self.tasks)>=self.max_downloads:return
         for r in self.storage.all():
             if len(self.tasks)>=self.max_downloads:break
-            if r['status'] in ('Queued','Retrying') and (not r['scheduled_at'] or r['scheduled_at']<=time.time()):
+            if r['queue_name'] and r['status'] in ('Queued','Retrying') and (not r['scheduled_at'] or r['scheduled_at']<=time.time()):
                 self.start_ids([r['id']])
     def pause_selected(self): self.pause_ids(self.selected_ids())
     def pause_ids(self,ids):
@@ -1703,8 +1713,76 @@ class MainWindow(QMainWindow):
             self.status_size.setText(f'Total size: {self.size(total)}')
             self.status_ready.setText('Ready')
 
+    def double_click_action(self,*args):
+        mode=str(self.settings.q.value('double_click_action','Properties'))
+        {'Open':self.open_file,'Open folder':self.open_folder,'Properties':self.details}[mode]()
+
     def context_menu(self,pos):
-        m=QMenu(self);m.addAction('Start',self.start_selected);m.addAction('Pause',self.pause_selected);m.addAction('Resume',self.resume_selected);m.addAction('Stop',self.stop_selected);m.addAction('Retry Failed',self.retry_selected);m.addAction('Refresh',self.refresh_selected);m.addSeparator();m.addAction('Open File',self.open_file);m.addAction('Open Folder',self.open_folder);m.addAction('Properties',self.details);m.addSeparator();m.addAction('Delete',self.delete_selected);m.exec(self.table.viewport().mapToGlobal(pos))
+        item=self.table.itemAt(pos)
+        if item and not item.isSelected(): self.table.selectRow(item.row())
+        ids=self.selected_ids()
+        if not ids:return
+        rows=[self.storage.get(i) for i in ids]; r=rows[0]
+        active=any(i in self.tasks for i in ids)
+        complete=all(x['status']=='Completed' for x in rows)
+        exists=len(ids)==1 and Path(r['path']).is_file()
+        m=QMenu(self)
+        m.setStyleSheet('QMenu {background:#fafafa; color:#111; padding:3px; border:1px solid #ddd;} QMenu::item {padding:5px 24px;} QMenu::item:selected {background:#dceafa;} QMenu::item:disabled {color:#999;} QMenu::separator {height:1px; background:#d6d6d6; margin:4px;}')
+        def action(label,fn,enabled=True):
+            a=m.addAction(label,fn);a.setEnabled(enabled);return a
+        action('Open',self.open_file,exists and complete)
+        action('Open with...',self.open_with,exists and complete)
+        action('Open folder',self.open_folder,Path(r['path']).parent.is_dir())
+        m.addSeparator()
+        action('Move/Rename (Ctrl-M)',self.move_rename,len(ids)==1 and exists and not active)
+        m.addSeparator();action('Redownload',self.redownload_selected,not active)
+        m.addSeparator();action('Resume Download',self.resume_selected,not active and not complete)
+        action('Stop Download',self.stop_selected,active)
+        m.addSeparator();action('Refresh download address',self.refresh_address,len(ids)==1 and not active and not complete)
+        m.addSeparator();action('Remove',self.delete_selected)
+        m.addSeparator();q=m.addMenu('Add to queue')
+        for name in ('Main','High Priority','Later'):
+            q.addAction(name,lambda checked=False,n=name:self.assign_queue(n))
+        action('Delete from queue',lambda:self.assign_queue(''),any(x['queue_name'] for x in rows))
+        m.addSeparator();d=m.addMenu('On double click')
+        for mode in ('Open','Open folder','Properties'):
+            a=d.addAction(mode);a.setCheckable(True);a.setChecked(str(self.settings.q.value('double_click_action','Properties'))==mode)
+            a.triggered.connect(lambda checked=False,v=mode:self.settings.q.setValue('double_click_action',v))
+        m.addSeparator();action('Properties',self.details)
+        m.exec(self.table.viewport().mapToGlobal(pos))
+
+    def open_with(self):
+        ids=self.selected_ids()
+        if ids:
+            path=self.storage.get(ids[0])['path']
+            subprocess.Popen(['rundll32.exe','shell32.dll,OpenAs_RunDLL',str(path)])
+
+    def move_rename(self):
+        ids=self.selected_ids()
+        if len(ids)!=1 or ids[0] in self.tasks:return
+        r=self.storage.get(ids[0]);old=Path(r['path'])
+        if not old.is_file():return
+        dest,_=QFileDialog.getSaveFileName(self,'Move/Rename',str(old))
+        if not dest or Path(dest)==old:return
+        if Path(dest).exists():
+            QMessageBox.warning(self,'Move/Rename','Choose a filename that does not already exist.');return
+        try:
+            import shutil
+            shutil.move(str(old),dest)
+            self.storage.update(ids[0],path=dest,filename=Path(dest).name);self.update_row(ids[0])
+        except Exception as e:QMessageBox.warning(self,'Move/Rename',str(e))
+
+    def assign_queue(self,name):
+        for rid in self.selected_ids():
+            self.storage.update(rid,queue_name=name);self.update_row(rid)
+
+    def refresh_address(self):
+        ids=self.selected_ids()
+        if len(ids)!=1 or ids[0] in self.tasks:return
+        r=self.storage.get(ids[0])
+        value,ok=QInputDialog.getText(self,'Refresh download address','Download URL:',text=r['url'])
+        if ok and value.strip().startswith(('https://','http://')):
+            self.storage.update(ids[0],url=value.strip(),error='');self.update_row(ids[0])
 
     def refresh_selected(self):
         # Re-read the latest database rows and repaint the list/progress windows.
@@ -1770,29 +1848,31 @@ class MainWindow(QMainWindow):
         try:
             n=self.storage.import_json(p); self.refresh_all_rows(); QMessageBox.information(self,'Import complete',f'Imported {n} download record(s).')
         except Exception as e:QMessageBox.critical(self,'Import failed',str(e))
-    def check_updates(self):
-        url=(self.settings.update_url or UPDATE_MANIFEST_URL or '').strip()
-        if not url:
-            QMessageBox.information(self,'Check for Updates','No update server is configured in this build. The application itself is working normally.')
-            return
-        self.statusBar().showMessage('Checking for updates...')
+    def check_updates(self,automatic=False):
+        if self._update_busy:return
+        self._update_busy=True;self._update_auto=automatic
+        url=(self.settings.update_url or UPDATE_MANIFEST_URL).strip()
         from .update import UpdateTask
-        task=UpdateTask(url); task.signals.checked.connect(self.update_result); task.signals.failed.connect(lambda e:self.update_failed(e)); self.pool.start(task)
+        self._update_task=UpdateTask(url)
+        self._update_task.signals.checked.connect(self.update_result)
+        self._update_task.signals.failed.connect(self.update_failed)
+        self.pool.start(self._update_task)
     def update_result(self,data):
-        remote=str(data.get('version','')) if isinstance(data,dict) else ''
-        if not remote:
-            QMessageBox.warning(self,'Update check','Update manifest did not contain a version.'); return
+        self._update_busy=False
+        remote=str(data.get('version',''))
         from .update import newer
         if newer(remote):
-            url=data.get('installer_url') or data.get('download_url') or ''
-            msg=f'A new version ({remote}) is available.\n\nCurrent version: {VERSION}'
-            if url: msg += f'\n\nDownload: {url}'
-            QMessageBox.information(self,'Update available',msg)
-        else: QMessageBox.information(self,'No update','You are using the latest version reported by the configured update server.')
-        self.statusBar().showMessage('Update check complete')
+            if self._update_auto and self._notified_version==remote:return
+            self._notified_version=remote
+            url=data.get('installer_url','')
+            if QMessageBox.question(self,'Update available',f'Internet Download Manager {remote} is available.\nCurrent version: {VERSION}\n\nDownload the installer now?',QMessageBox.Yes|QMessageBox.No)==QMessageBox.Yes:
+                from PySide6.QtGui import QDesktopServices
+                from PySide6.QtCore import QUrl
+                QDesktopServices.openUrl(QUrl(url))
+        elif not self._update_auto:QMessageBox.information(self,'No update','You are using the latest version.')
     def update_failed(self,error):
-        self.statusBar().showMessage('Update check failed')
-        QMessageBox.warning(self,'Update check failed',f'Could not check the update server.\n\n{error}')
+        self._update_busy=False
+        if not self._update_auto:QMessageBox.warning(self,'Update check failed',f'Could not check for updates.\n{error}')
     def request_exit(self):
         try: self.browser_bridge.stop()
         except Exception: pass
