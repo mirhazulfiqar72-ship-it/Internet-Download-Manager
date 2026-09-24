@@ -1,5 +1,33 @@
 (() => {
   const ROOT_ID = 'odm-video-download-root';
+  if (globalThis.__idmContentActive) return;
+  globalThis.__idmContentActive = true;
+  document.getElementById(ROOT_ID)?.remove();
+
+  function sendMessage(message) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage(message, response => {
+          const error = chrome.runtime.lastError;
+          if (error) reject(new Error(error.message));
+          else resolve(response);
+        });
+      } catch (error) { reject(error); }
+    });
+  }
+  async function requestFormats(url) {
+    let failure;
+    for (let attempt=0; attempt<2; attempt++) {
+      try { return await sendMessage({action:'mediaFormats', idmUrl:url}); }
+      catch (error) {
+        failure=error;
+        if (!chrome.runtime?.id) break;
+        await new Promise(resolve => setTimeout(resolve, 350));
+      }
+    }
+    throw failure;
+  }
+
   let root = null;
   let menu = null;
   let button = null;
@@ -26,11 +54,11 @@
     formatCache.set(key, entry);
     // Keep metadata only; download URLs are still resolved by the desktop app.
     if (formatCache.size > 12) formatCache.delete(formatCache.keys().next().value);
-    Promise.resolve().then(() => chrome.runtime.sendMessage({action:'mediaFormats', idmUrl:pageUrl}))
+    requestFormats(pageUrl)
       .then(result => {
         entry.result = result && result.ok && result.formats && result.formats.length ? result : null;
         entry.error = (result && result.error) || 'Could not read this video. Click to retry.';
-      }).catch(() => { entry.error = 'Could not read this video. Reload the extension and retry.'; })
+      }).catch(error => { entry.error = !chrome.runtime?.id ? 'The extension was updated. Refresh this video page once to reconnect.' : 'Browser connection interrupted. Click again to retry. ' + String(error.message || ''); })
       .finally(() => {
         entry.pending = false;
         entry.expires = Date.now() + (entry.result ? CACHE_MS : 15000);
@@ -189,6 +217,7 @@
   }
 
   function positionUI() {
+    if (!chrome.runtime?.id) return;
     buildUI();
     if (menuPage && menuPage !== mediaKey()) { menuPage = ""; closeMenu(); }
     currentVideo = largestVisibleVideo();

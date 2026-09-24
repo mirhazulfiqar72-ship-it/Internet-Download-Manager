@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Internet Download Manager Integration",
-  "version": "1.5.2.2",
+  "version": "1.5.4",
   "description": "Browser download integration with foreground File Info dialogs, live speed/ETA progress, tray-safe background downloads, and completion flow.",
   "permissions": [
     "activeTab",
     "contextMenus",
     "nativeMessaging",
-    "downloads"
+    "downloads",
+    "scripting"
   ],
   "host_permissions": [
     "http://*/*",

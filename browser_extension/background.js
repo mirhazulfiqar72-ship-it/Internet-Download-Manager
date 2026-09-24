@@ -154,3 +154,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   handle(payload, sender.tab && sender.tab.id).then(() => sendResponse({ok:true}));
   return true;
 });
+
+// Reconnect already-open tabs after the extension is reloaded or updated.
+async function reconnectVideoTabs() {
+  const tabs = await chrome.tabs.query({url:['http://*/*','https://*/*']});
+  await Promise.all(tabs.map(async tab => {
+    try {
+      await chrome.scripting.executeScript({target:{tabId:tab.id},files:['content.js']});
+    } catch (_) { /* Restricted or closed tabs are not injectable. */ }
+  }));
+}
+chrome.runtime.onInstalled.addListener(() => { reconnectVideoTabs().catch(() => {}); });
+chrome.runtime.onStartup.addListener(() => { reconnectVideoTabs().catch(() => {}); });
