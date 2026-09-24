@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#081226">
+  <meta name="description" content="A fast Windows download manager with pause and resume, browser integration, media downloads, queues, scheduling and automatic update checks.">
+  <title>Internet Download Manager — Fast downloads for Windows</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://raw.githubusercontent.com">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-glow page-glow-one" aria-hidden="true"></div>
+  <div class="page-glow page-glow-two" aria-hidden="true"></div>
+
+  <header class="site-header" id="top">
+    <div class="container nav-wrap">
+      <a class="brand" href="#top" aria-label="Internet Download Manager home">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="https://raw.githubusercontent.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/main/assets/app_icon.png" alt="">
+        </span>
+        <span class="brand-text">
+          <strong>Internet Download Manager</strong>
+          <small>for Windows</small>
+        </span>
+      </a>
+
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="Open navigation">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="main-nav" id="main-nav" aria-label="Primary navigation">
+        <a href="#features">Features</a>
+        <a href="#preview">Preview</a>
+        <a href="#install">Install</a>
+        <a href="#faq">FAQ</a>
+        <a class="nav-github" href="https://github.com/mirhazulfiqar72-ship-it/Internet-Download-Manager" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow">
+            <span class="status-dot"></span>
+            <span id="release-status">Latest stable release</span>
+          </div>
+
+          <h1>Download faster.<br><span>Stay in control.</span></h1>
+          <p class="hero-lead">A clean Windows download manager with pause and resume, browser integration, media quality selection, queues, scheduling, duplicate handling and built-in update checks.</p>
+
+          <div class="hero-actions">
+            <a class="button button-primary download-link" href="https://github.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/releases/latest/download/InternetDownloadManager_Setup.exe">
+              <span class="button-icon" aria-hidden="true">↓</span>
+              <span>
+                <strong>Download for Windows</strong>
+                <small><span class="version-text">v1.5.10</span> · Installer</small>
+              </span>
+            </a>
+            <a class="button button-secondary" href="https://github.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/releases/latest" target="_blank" rel="noreferrer">
+              View latest release
+            </a>
+          </div>
+
+          <div class="hero-meta">
+            <span>Windows desktop</span>
+            <span>Control Panel uninstall</span>
+            <span>Free download</span>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="Application preview">
+          <div class="window-shell">
+            <div class="window-titlebar">
+              <div class="window-title-left">
+                <img src="https://raw.githubusercontent.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/main/assets/app_icon_64.png" alt="">
+                <span>Internet Download Manager</span>
+              </div>
+              <div class="window-controls" aria-hidden="true"><i>—</i><i>□</i><i>×</i></div>
+            </div>
+            <div class="window-menu"><span>Tasks</span><span>File</span><span>Downloads</span><span>View</span><span>Help</span></div>
+            <div class="toolbar">
+              <div><b>＋</b><span>Add URL</span></div>
+              <div><b>▶</b><span>Resume</span></div>
+              <div><b>■</b><span>Stop</span></div>
+              <div><b>⌫</b><span>Delete</span></div>
+              <div><b>⚙</b><span>Options</span></div>
+              <div><b>▣</b><span>Scheduler</span></div>
+            </div>
+            <div class="app-body">
+              <aside>
+                <strong>Categories</strong>
+                <span class="active">All Downloads</span>
+                <span>Compressed</span>
+                <span>Documents</span>
+                <span>Music</span>
+                <span>Video</span>
+              </aside>
+              <div class="downloads-table">
+                <div class="table-head"><span>File Name</span><span>Size</span><span>Status</span><span>Transfer rate</span></div>
+                <div class="download-row">
+                  <span><i class="file-dot video"></i>Project_Video.mp4</span><span>1.42 GB</span><span><b class="badge downloading">Downloading</b></span><span>18.6 MB/s</span>
+                </div>
+                <div class="download-row">
+                  <span><i class="file-dot archive"></i>Assets_Pack.zip</span><span>462 MB</span><span><b class="badge complete">Completed</b></span><span>—</span>
+                </div>
+                <div class="download-row">
+                  <span><i class="file-dot document"></i>Guide.pdf</span><span>12.8 MB</span><span><b class="badge paused">Paused</b></span><span>—</span>
+                </div>
+                <div class="progress-panel">
+                  <div class="progress-copy"><strong>Project_Video.mp4</strong><span>72%</span></div>
+                  <div class="progress-track"><i></i></div>
+                  <div class="progress-stats"><span>1.02 GB of 1.42 GB</span><span>00:00:22 left</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="window-status"><span>3 file(s)</span><span>Total size: 1.89 GB</span><span>Ready</span></div>
+          </div>
+          <div class="floating-card speed-card"><span>LIVE SPEED</span><strong>18.6</strong><small>MB/s</small></div>
+          <div class="floating-card update-card"><span>✓</span><div><strong>Updates built in</strong><small>Help → Check for Updates</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="trust-strip">
+      <div class="container trust-grid">
+        <div><strong>Pause & Resume</strong><span>Continue interrupted downloads</span></div>
+        <div><strong>Browser Integration</strong><span>Capture supported downloads</span></div>
+        <div><strong>Media Quality</strong><span>Choose available video quality</span></div>
+        <div><strong>Auto Updates</strong><span>Check releases inside the app</span></div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-heading">
+          <span class="section-kicker">Built for everyday downloading</span>
+          <h2>Everything you need, without the clutter.</h2>
+          <p>Designed around the workflows that matter most on Windows: reliable transfers, clear controls and quick access to the files you download.</p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card featured">
+            <div class="feature-icon">⚡</div>
+            <h3>Fast segmented downloads</h3>
+            <p>Multiple connections can be used for supported downloads, with live speed, progress and time remaining.</p>
+            <div class="mini-speed">
+              <span>Transfer rate</span><strong>18.6 MB/s</strong>
+              <div><i></i></div>
+            </div>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">↻</div>
+            <h3>Pause, resume & retry</h3>
+            <p>Pause active transfers, resume later and recover interrupted downloads without starting over when the server supports it.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">◫</div>
+            <h3>Browser integration</h3>
+            <p>Use the browser integration flow to pass supported links into the desktop app and open the normal Download File Info dialog.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">4K</div>
+            <h3>Media quality selection</h3>
+            <p>For supported media pages, inspect available formats and choose the quality you want before the download starts.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">⌚</div>
+            <h3>Queues & scheduling</h3>
+            <p>Organize downloads into queues, start or stop groups, and schedule items for a later time.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">✓</div>
+            <h3>Smart duplicate handling</h3>
+            <p>The duplicate dialog appears only when the same download is still present in your downloader list, keeping re-downloads clean.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">⚙</div>
+            <h3>Classic compact options</h3>
+            <p>Configure file types, save locations, connections, proxy settings, site logins, sounds and browser integration from one dialog.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section preview-section" id="preview">
+      <div class="container preview-grid">
+        <div class="preview-copy">
+          <span class="section-kicker">Familiar Windows workflow</span>
+          <h2>Simple controls. Clear information.</h2>
+          <p>The interface keeps downloads, categories and actions visible at a glance. Download File Info gives you the target path before starting, while progress windows show the transfer as it happens.</p>
+          <ul class="check-list">
+            <li>Compact Windows desktop interface</li>
+            <li>Download File Info before transfer</li>
+            <li>Live progress and speed information</li>
+            <li>Categories and queue organization</li>
+            <li>Built-in Help → Check for Updates</li>
+          </ul>
+        </div>
+
+        <div class="options-mock">
+          <div class="mock-titlebar"><span>🌐</span><strong>Internet Download Manager Configuration</strong><i>×</i></div>
+          <div class="tabs top"><span>Proxy / Socks</span><span>Sites Logins</span><span>Dial Up / VPN</span><span>Sounds</span></div>
+          <div class="tabs bottom"><span class="selected">General</span><span>File types</span><span>Save to</span><span>Downloads</span><span>Connection</span></div>
+          <div class="mock-content">
+            <h4>Browser/System Integration</h4>
+            <label><input type="checkbox" checked disabled> Launch Internet Download Manager on startup</label>
+            <label><input type="checkbox" checked disabled> Run module for monitoring in IE-based browsers</label>
+            <label><input type="checkbox" disabled> Automatically start downloading URLs placed to clipboard</label>
+            <label><input type="checkbox" checked disabled> Use advanced browser integration</label>
+            <fieldset>
+              <legend>Capture downloads from the following browsers:</legend>
+              <label><input type="checkbox" checked disabled> Google Chrome</label>
+              <label><input type="checkbox" checked disabled> Microsoft Edge</label>
+              <label><input type="checkbox" checked disabled> Opera</label>
+              <label><input type="checkbox" checked disabled> Brave</label>
+            </fieldset>
+            <div class="mock-action"><span>Customize keys to prevent or force downloading with IDM</span><button type="button">Keys…</button></div>
+            <div class="mock-action"><span>Customize IDM menu items in context menu of browsers</span><button type="button">Edit…</button></div>
+          </div>
+          <div class="mock-footer"><button type="button">OK</button><button type="button">Cancel</button><button type="button">Apply</button><button type="button">Help</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section install-section" id="install">
+      <div class="container">
+        <div class="section-heading compact">
+          <span class="section-kicker">Get started in minutes</span>
+          <h2>Install on Windows.</h2>
+          <p>The installer creates the desktop application and supports normal Windows uninstall through Control Panel.</p>
+        </div>
+
+        <div class="install-layout">
+          <div class="install-steps">
+            <article><span>01</span><div><h3>Download</h3><p>Use the latest installer from this page. The download button always points to the newest GitHub release.</p></div></article>
+            <article><span>02</span><div><h3>Install</h3><p>Run <code>InternetDownloadManager_Setup.exe</code> and complete the Windows installer.</p></div></article>
+            <article><span>03</span><div><h3>Start downloading</h3><p>Open the app, add a URL or use the supported browser integration flow.</p></div></article>
+          </div>
+
+          <aside class="download-card">
+            <div class="download-card-top">
+              <img src="https://raw.githubusercontent.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/main/assets/app_icon_64.png" alt="">
+              <div><span>Latest stable</span><strong class="version-text">v1.5.10</strong></div>
+            </div>
+            <dl>
+              <div><dt>Platform</dt><dd>Windows</dd></div>
+              <div><dt>Package</dt><dd>EXE installer</dd></div>
+              <div><dt>Installer size</dt><dd id="installer-size">~92 MB</dd></div>
+              <div><dt>Updates</dt><dd>Built in</dd></div>
+            </dl>
+            <a class="button button-primary button-full download-link" href="https://github.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/releases/latest/download/InternetDownloadManager_Setup.exe">Download latest installer</a>
+            <a class="text-link" href="https://github.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/releases" target="_blank" rel="noreferrer">Browse all releases →</a>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="section faq-section" id="faq">
+      <div class="container faq-layout">
+        <div class="faq-intro">
+          <span class="section-kicker">Questions</span>
+          <h2>Frequently asked.</h2>
+          <p>Quick answers about downloads, updates and installation.</p>
+        </div>
+        <div class="faq-list">
+          <details open>
+            <summary>How do I update to a newer version?</summary>
+            <p>Open <strong>Help → Check for Updates</strong>. When a newer release is available, the app shows an update dialog with a Download update option.</p>
+          </details>
+          <details>
+            <summary>When does the duplicate download dialog appear?</summary>
+            <p>It appears when the same download is already present in the downloader list. If that entry has been removed, downloading it again does not trigger the duplicate dialog.</p>
+          </details>
+          <details>
+            <summary>Can I pause and resume a download?</summary>
+            <p>Yes. Resume support depends on the source server, but supported transfers can be paused and continued later.</p>
+          </details>
+          <details>
+            <summary>Where does the installer come from?</summary>
+            <p>The download button uses the latest published release from this project's GitHub repository.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <div class="container cta-card">
+        <div>
+          <span class="section-kicker">Ready to download?</span>
+          <h2>Get the latest Windows build.</h2>
+          <p>Fast setup, familiar controls and update checking built into the app.</p>
+        </div>
+        <a class="button button-light download-link" href="https://github.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/releases/latest/download/InternetDownloadManager_Setup.exe">
+          <span>Download <b class="version-text">v1.5.10</b></span><strong>↓</strong>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="#top">
+          <span class="brand-mark"><img src="https://raw.githubusercontent.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/main/assets/app_icon.png" alt=""></span>
+          <span class="brand-text"><strong>Internet Download Manager</strong><small>Windows desktop project</small></span>
+        </a>
+        <p>Independent Windows download manager project hosted on GitHub.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#features">Features</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/mirhazulfiqar72-ship-it/Internet-Download-Manager/releases" target="_blank" rel="noreferrer">Releases</a>
+        <a href="https://github.com/mirhazulfiqar72-ship-it/Internet-Download-Manager" target="_blank" rel="noreferrer">Source</a>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <span>© <span id="year"></span> Internet Download Manager project.</span>
+      <span>No tracking scripts. No ads.</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
