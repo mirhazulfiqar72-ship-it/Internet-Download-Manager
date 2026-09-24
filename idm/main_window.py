@@ -124,7 +124,8 @@ class AddressDialog(QDialog):
 class AddDialog(QDialog):
     def __init__(self, parent=None, initial_url=''):
         super().__init__(parent); self.setWindowTitle('Download File Info'); self.setFixedSize(570,210); self.action='cancel'
-        self.setWindowFlags(self.windowFlags() | Qt.Window)
+        flags=(self.windowFlags() | Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint) & ~Qt.WindowContextHelpButtonHint
+        self.setWindowFlags(flags)
         self.setObjectName('classicDownloadDialog')
         root=QVBoxLayout(self); root.setContentsMargins(10,8,10,10); root.setSpacing(8)
         content=QHBoxLayout(); form=QFormLayout(); form.setLabelAlignment(Qt.AlignRight|Qt.AlignVCenter); form.setHorizontalSpacing(6); form.setVerticalSpacing(4)
@@ -1024,7 +1025,11 @@ class MainWindow(QMainWindow):
         self.refresh_visibility()
     def selected_ids(self): return [self.table.item(i,0).data(Qt.UserRole) for i in sorted({x.row() for x in self.table.selectedIndexes()})]
     def _duplicate_target(self,url,path,selector=''):
-        rows=[dict(r) for r in self.storage.all()]
+        # Duplicate prompts are based only on entries that are actually still
+        # present in the downloader list.  Deleted/stale database rows and old
+        # "Replaced" shadow rows must never trigger the duplicate dialog.
+        listed_ids={self.table.item(i,0).data(Qt.UserRole) for i in range(self.table.rowCount()) if self.table.item(i,0)}
+        rows=[dict(r) for r in self.storage.all() if r['id'] in listed_ids and str(r['status'])!='Replaced']
         q=QSettings('InternetDownloadManager','InternetDownloadManager')
         existing=None
         for row in sorted(rows,key=lambda r:r['id'],reverse=True):
