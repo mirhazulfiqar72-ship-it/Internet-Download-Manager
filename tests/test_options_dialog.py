@@ -12,7 +12,7 @@ w=MainWindow(); w.update_timer.stop()
 try:
     d=SettingsDialog(w,w.settings)
     assert d.pages.count()==9
-    assert [b.text() for b in d.nav]==['General','File Types','Save To','Downloads','Connection','Proxy / Socks','Site logins','Dial-Up / VPN','Sounds']
+    assert [b.text() for b in d.nav]==['General','File types','Save to','Downloads','Connection','Proxy / Socks','Sites Logins','Dial Up / VPN','Sounds']
     d.connections.setValue(8); d.speed.setValue(0); d.show_complete.setChecked(False); d.apply()
     saved=load_options(); assert saved['show_complete'] is False
     assert w.settings.connections==8

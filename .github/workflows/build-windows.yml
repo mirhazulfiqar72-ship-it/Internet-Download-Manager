@@ -64,5 +64,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           $version = python -c "from idm.release import VERSION; print(VERSION)"
-          gh release create "v$version" installer-output/InternetDownloadManager_Setup.exe --target "$env:GITHUB_SHA" --title "Internet Download Manager $version" --notes "Add compact nine-tab Options dialog (General, File Types, Save To, Downloads, Connection, Proxy / Socks, Site logins, Dial-Up / VPN and Sounds) with persisted settings and download integration." --latest
+          gh release create "v$version" installer-output/InternetDownloadManager_Setup.exe --target "$env:GITHUB_SHA" --title "Internet Download Manager $version" --notes "Classic IDM-style Options layout matched to the supplied reference, with the existing updater retained so v1.5.8 and later builds can detect and offer this release from Help > Check for Updates." --latest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

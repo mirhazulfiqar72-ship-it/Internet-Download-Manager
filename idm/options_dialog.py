@@ -4,17 +4,20 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
-from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QGridLayout,QFormLayout,QWidget,QStackedWidget,QPushButton,QLabel,QCheckBox,QLineEdit,QComboBox,QSpinBox,QPlainTextEdit,QTableWidget,QTableWidgetItem,QHeaderView,QDialogButtonBox,QFileDialog,QMessageBox,QInputDialog,QAbstractItemView)
+from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QGridLayout,QFormLayout,QWidget,QStackedWidget,QPushButton,QLabel,QCheckBox,QLineEdit,QComboBox,QSpinBox,QPlainTextEdit,QTableWidget,QTableWidgetItem,QHeaderView,QDialogButtonBox,QFileDialog,QMessageBox,QInputDialog,QAbstractItemView,QFrame,QScrollArea)
 from .options_config import load_options,save_options,DEFAULTS,CATEGORIES,category_settings,protect,unprotect,apply_startup,sound_event,dial_connect
 
-STYLE='''QDialog{background:#f4f4f4;} QWidget{font-family:"Segoe UI";font-size:9pt;color:#202020;}
-QPushButton{min-height:24px;min-width:66px;padding:1px 10px;border:1px solid #acb3bb;border-radius:3px;background:#fafafa;}
-QPushButton:hover{border-color:#1682cc;background:#e9f3fb;} QPushButton:pressed{background:#d7eafa;}
-QPushButton:disabled{color:#929292;background:#eeeeee;} QPushButton:default{border:1px solid #1682cc;}
-QPushButton[pageButton="true"]{min-width:0;padding:2px 4px;border-radius:2px;background:#e9ecf0;}
-QPushButton[pageButton="true"]:checked{background:white;border-bottom:2px solid #1682cc;color:#075c99;}
-QLineEdit,QSpinBox,QComboBox,QPlainTextEdit,QTableWidget{background:white;border:1px solid #b9bec5;selection-background-color:#d7eafa;selection-color:#111;}
-QLineEdit,QSpinBox,QComboBox{min-height:23px;} QTableWidget{gridline-color:#e4e7eb;} QLabel[heading="true"]{font-size:10pt;font-weight:600;color:#174d72;}
+STYLE='''QDialog{background:#f2f2f2;} QWidget{font-family:"Segoe UI";font-size:8.5pt;color:#111;}
+QPushButton{min-height:22px;min-width:60px;padding:1px 8px;border:1px solid #9a9a9a;border-radius:2px;background:#f2f2f2;}
+QPushButton:hover{border-color:#5f8fb8;background:#eef6ff;} QPushButton:pressed{background:#dce9f5;}
+QPushButton:disabled{color:#8d8d8d;background:#ededed;} QPushButton:default{border:1px solid #2678b8;}
+QPushButton[pageButton="true"]{min-width:0;min-height:18px;padding:0 4px;border:1px solid #8f8f8f;border-radius:0;background:#e7e7e7;font-weight:400;}
+QPushButton[pageButton="true"]:hover{background:#f1f1f1;} QPushButton[pageButton="true"]:checked{background:white;border-bottom-color:white;font-weight:600;color:#111;}
+QStackedWidget#optionsPages{background:white;border:1px solid #8f8f8f;}
+QLineEdit,QSpinBox,QComboBox,QPlainTextEdit,QTableWidget{background:white;border:1px solid #9a9a9a;selection-background-color:#cfe6ff;selection-color:#111;}
+QLineEdit,QSpinBox,QComboBox{min-height:21px;} QTableWidget{gridline-color:#dedede;} QLabel[heading="true"]{font-size:9pt;font-weight:700;color:#111;}
+QFrame#browserCapture{background:#f7f7f7;border:1px solid #c8c8c8;} QScrollArea#browserList{background:white;border:1px solid #aaa;}
+QScrollArea#browserList QWidget{background:white;} QCheckBox{spacing:5px;} QDialogButtonBox QPushButton{min-width:68px;}
 '''
 
 def buttons(dialog,layout):
@@ -36,14 +39,17 @@ class SettingsDialog(QDialog):
     applied=Signal()
     def __init__(self,parent,settings):
         super().__init__(parent);self.settings=settings;self.data=load_options();self.setWindowTitle('Internet Download Manager Configuration');self.setStyleSheet(STYLE)
-        self.resize(620,550);self.setMinimumSize(580,530)
-        root=QVBoxLayout(self);root.setContentsMargins(12,10,12,10);root.setSpacing(8)
-        nav=QGridLayout();nav.setSpacing(2);root.addLayout(nav);self.pages=QStackedWidget();root.addWidget(self.pages,1);self.nav=[]
-        names=['General','File Types','Save To','Downloads','Connection','Proxy / Socks','Site logins','Dial-Up / VPN','Sounds']
+        self.resize(442,500);self.setMinimumSize(442,500)
+        root=QVBoxLayout(self);root.setContentsMargins(7,6,7,7);root.setSpacing(5)
+        nav=QGridLayout();nav.setContentsMargins(0,0,0,0);nav.setHorizontalSpacing(0);nav.setVerticalSpacing(0);root.addLayout(nav)
+        self.pages=QStackedWidget();self.pages.setObjectName('optionsPages');root.addWidget(self.pages,1);self.nav=[]
+        names=['General','File types','Save to','Downloads','Connection','Proxy / Socks','Sites Logins','Dial Up / VPN','Sounds']
         builders=[self.general,self.filetypes,self.saveto,self.downloads,self.connection,self.proxy,self.logins,self.dialup,self.sounds]
         for i,(name,build) in enumerate(zip(names,builders)):
-            b=QPushButton(name);b.setProperty('pageButton',True);b.setCheckable(True);b.clicked.connect(lambda checked=False,n=i:self.select_page(n));nav.addWidget(b,i//5,i%5);self.nav.append(b)
-            page=QWidget();layout=QVBoxLayout(page);layout.setContentsMargins(12,10,12,8);layout.setSpacing(9);build(layout);self.pages.addWidget(page)
+            b=QPushButton(name);b.setProperty('pageButton',True);b.setCheckable(True);b.clicked.connect(lambda checked=False,n=i:self.select_page(n));self.nav.append(b)
+            page=QWidget();layout=QVBoxLayout(page);layout.setContentsMargins(8,8,8,6);layout.setSpacing(5);build(layout);self.pages.addWidget(page)
+        for col,index in enumerate((5,6,7,8)):nav.addWidget(self.nav[index],0,col*5,1,5)
+        for col,index in enumerate((0,1,2,3,4)):nav.addWidget(self.nav[index],1,col*4,1,4)
         box=QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel|QDialogButtonBox.Apply|QDialogButtonBox.Help)
         box.accepted.connect(self.accept);box.rejected.connect(self.reject);box.button(QDialogButtonBox.Apply).clicked.connect(self.apply)
         box.helpRequested.connect(lambda:QMessageBox.information(self,'Options help','Select a tab to configure downloads. OK saves and closes; Apply saves immediately; Cancel discards changes since the last Apply.\n\nBrowser settings take effect within a few seconds with the updated extension. Connection settings apply to new or resumed downloads. Dial-Up uses connections already saved in Windows.'))
@@ -55,24 +61,41 @@ class SettingsDialog(QDialog):
         w=QLabel(text);w.setProperty('heading',True);lay.addWidget(w)
     def row(self,lay,label,widget):
         f=QFormLayout();f.setContentsMargins(0,0,0,0);f.addRow(label,widget);lay.addLayout(f)
-    def action(self,lay,text,callback):
-        row=QHBoxLayout();row.addWidget(QLabel(text),1);b=QPushButton('Edit…');b.clicked.connect(callback);row.addWidget(b);lay.addLayout(row)
+    def action(self,lay,text,callback,button_text='Edit…'):
+        row=QHBoxLayout();row.setContentsMargins(0,0,0,0);row.setSpacing(6);label=QLabel(text);label.setWordWrap(True);row.addWidget(label,1);b=QPushButton(button_text);b.clicked.connect(callback);row.addWidget(b);lay.addLayout(row)
+    def boolean_editor(self,title,label,control):
+        d,layout,form=editor(self,title);d.resize(390,130);enabled=check(label,control.isChecked());form.addRow(enabled);buttons(d,layout)
+        if d.exec()==QDialog.Accepted:control.setChecked(enabled.isChecked())
     def general(self,lay):
-        self.heading(lay,'Browser / System Integration')
-        self.startup=check('Launch Internet Download Manager on Windows startup',self.data['startup']);lay.addWidget(self.startup)
-        self.clipboard=check('Automatically add download URLs copied to clipboard',self.data['clipboard']);lay.addWidget(self.clipboard)
-        self.integration=check('Enable browser download integration',self.data['integration']);lay.addWidget(self.integration)
+        self.heading(lay,'Browser/System Integration')
+        self.startup=check('Launch Internet Download Manager on startup',self.data['startup']);lay.addWidget(self.startup)
+        self.monitor=check('Run module for monitoring in IE-based browsers (AOL, MSN, Avant, etc)',self.data['integration']);lay.addWidget(self.monitor)
+        self.clipboard=check('Automatically start downloading of URLs placed to clipboard',self.data['clipboard']);lay.addWidget(self.clipboard)
+        self.integration=check('Use advanced browser integration',self.data['integration']);lay.addWidget(self.integration)
+        self.monitor.toggled.connect(self.integration.setChecked);self.integration.toggled.connect(self.monitor.setChecked)
         self.tray=check('Minimize main window to the system tray',self.settings.minimize_to_tray);lay.addWidget(self.tray)
         self.notify=check('Show desktop notifications',self.settings.notifications);lay.addWidget(self.notify)
-        lay.addWidget(QLabel('Capture downloads from these supported browsers:'))
-        grid=QGridLayout();self.browser_checks={}
-        for i,name in enumerate(['Chrome','Edge','Opera','Brave']):
-            w=check(name,name in self.data['browsers']);self.browser_checks[name]=w;grid.addWidget(w,i//2,i%2)
-        lay.addLayout(grid)
-        hint=QLabel('Requires the installed browser extension.');hint.setStyleSheet('color:#666;');lay.addWidget(hint)
-        self.action(lay,'Keys to prevent or force automatic capture',self.keys_editor)
-        self.context_menu=check('Show download commands in browser context menus',self.data['context_menu']);lay.addWidget(self.context_menu)
-        self.video_panel=check('Show “Download this video” panel',self.data['video_panel']);lay.addWidget(self.video_panel);lay.addStretch()
+
+        frame=QFrame();frame.setObjectName('browserCapture');frame_layout=QVBoxLayout(frame);frame_layout.setContentsMargins(7,5,7,6);frame_layout.setSpacing(4)
+        frame_layout.addWidget(QLabel('Capture downloads from the following browsers:'))
+        scroll=QScrollArea();scroll.setObjectName('browserList');scroll.setWidgetResizable(True);scroll.setFixedHeight(112)
+        browser_page=QWidget();browser_layout=QVBoxLayout(browser_page);browser_layout.setContentsMargins(5,3,5,3);browser_layout.setSpacing(1);self.browser_checks={}
+        rows=[(None,'Apple Safari'),('Chrome','Google Chrome'),(None,'Internet Explorer'),('Edge','Microsoft Edge'),(None,'Mozilla'),(None,'Mozilla Firefox'),('Opera','Opera'),(None,'Opera GX'),('Brave','Brave')]
+        for key,label in rows:
+            if key:
+                w=check(label,key in self.data['browsers']);self.browser_checks[key]=w
+            else:
+                w=check(label,True);w.setEnabled(False)
+            browser_layout.addWidget(w)
+        browser_layout.addStretch();scroll.setWidget(browser_page);frame_layout.addWidget(scroll)
+        add_row=QHBoxLayout();add_row.addStretch();add_browser=QPushButton('Add browser…');add_browser.setEnabled(False);add_browser.setToolTip('Supported Chromium browsers are detected through the installed extension.');add_row.addWidget(add_browser);frame_layout.addLayout(add_row);lay.addWidget(frame)
+
+        self.action(lay,'Customize keys to prevent or force downloading with IDM',self.keys_editor,'Keys…')
+        self.context_menu=check('',self.data['context_menu'])
+        self.video_panel=check('',self.data['video_panel'])
+        self.action(lay,'Customize IDM menu items in context menu of browsers',lambda:self.boolean_editor('Browser context menu','Show download commands in browser context menus',self.context_menu))
+        self.action(lay,'Customize IDM Download panels in browsers',lambda:self.boolean_editor('Download panels','Show “Download this video” panel',self.video_panel))
+        lay.addStretch()
     def filetypes(self,lay):
         self.heading(lay,'Downloaded file types')
         lay.addWidget(QLabel('Automatically capture these file extensions (space separated; * = all):'))
