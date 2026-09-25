@@ -39,6 +39,10 @@ try:
     assert flags & Qt.WindowCloseButtonHint
     assert info.minimumSize()==info.maximumSize()
     info.close()
+    doc_info=module.AddDialog(w,'https://example.com/quarterly-report.docx')
+    assert doc_info.category.currentText()=='Documents'
+    assert not doc_info.file_icon.pixmap(48,48).isNull()
+    doc_info.close()
 
     # A stale/deleted record that is not in the downloader table must not
     # trigger the duplicate dialog.  A current table row must still do so.

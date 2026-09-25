@@ -4,6 +4,29 @@
   globalThis.__idmContentActive = true;
   document.getElementById(ROOT_ID)?.remove();
 
+  // Catch clear file-download links before Chrome starts its own download.
+  // Downloads without a recognizable link are still routed by downloads.onCreated.
+  const DOWNLOAD_FILE_EXT = /\.(?:7z|apk|bin|bz2|cab|csv|docx?|epub|exe|flac|flv|gz|iso|m4a|m4v|mkv|mov|mp3|mp4|mpeg|mpg|msi|ods|odt|ogg|pdf|pptx?|rar|rtf|tar|tgz|txt|wav|webm|wmv|xls[xm]?|zip)(?:$|[?#])/i;
+  function shouldRouteDownload(anchor, href) {
+    let url;
+    try { url = new URL(href, location.href); } catch (_) { return false; }
+    if (!/^https?:$/.test(url.protocol)) return false;
+    if (anchor.hasAttribute('download')) return true;
+    if (DOWNLOAD_FILE_EXT.test(url.pathname)) return true;
+    if (url.searchParams.has('download')) return true;
+    return /(^|\.)drive\.google\.com$/i.test(url.hostname) &&
+      url.pathname === '/uc' && url.searchParams.get('export') === 'download';
+  }
+  document.addEventListener('click', event => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey ||
+        event.shiftKey || event.altKey) return;
+    const anchor = event.target && event.target.closest && event.target.closest('a[href]');
+    if (!anchor || !shouldRouteDownload(anchor, anchor.href)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    try { chrome.runtime.sendMessage({action:'directMedia', idmUrl:anchor.href}); } catch (_) {}
+  }, true);
+
   function sendMessage(message) {
     return new Promise((resolve, reject) => {
       try {

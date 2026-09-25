@@ -241,22 +241,36 @@ class AddDialog(QDialog):
         except Exception:
             return '--'
 
+    @staticmethod
+    def _file_type_preview_icon(path):
+        ext=Path(path).suffix.lower().lstrip('.').upper()[:5] or 'FILE'
+        colors={
+            'PDF':'#d64040','DOC':'#2874b8','DOCX':'#2874b8','XLS':'#23834a','XLSX':'#23834a',
+            'PPT':'#c76532','PPTX':'#c76532','TXT':'#64748b','CSV':'#23834a','RTF':'#64748b'
+        }
+        color=QColor(colors.get(ext,'#536b83'))
+        pm=QPixmap(48,48); pm.fill(Qt.transparent)
+        painter=QPainter(pm); painter.setRenderHint(QPainter.Antialiasing,True)
+        painter.setPen(QPen(QColor('#9aa7b5'),1)); painter.setBrush(QBrush(QColor('#f7f9fc')))
+        painter.drawRoundedRect(7,3,34,42,3,3)
+        painter.setPen(Qt.NoPen); painter.setBrush(QBrush(QColor('#dfe6ee')))
+        painter.drawPolygon(QPolygonF([QPointF(29,4),QPointF(39,14),QPointF(29,14)]))
+        painter.setBrush(QBrush(color)); painter.drawRoundedRect(5,28,38,14,3,3)
+        painter.setPen(QPen(Qt.white)); painter.setFont(QFont('Segoe UI',8,QFont.Bold))
+        painter.drawText(QRectF(5,28,38,14),Qt.AlignCenter,ext)
+        painter.end()
+        return QIcon(pm)
+
     def _update_file_type_icon(self):
         try:
             target=self.save_as.text().strip() if hasattr(self,'save_as') else ''
             info=QFileInfo(target)
-            if not info.exists() and info.suffix():
-                import tempfile
-                with tempfile.TemporaryDirectory(prefix='idm-icon-') as temp:
-                    dummy=Path(temp) / ('preview.' + info.suffix())
-                    dummy.touch()
-                    icon=QFileIconProvider().icon(QFileInfo(str(dummy)))
-            else:
-                icon=QFileIconProvider().icon(info)
-            if not icon.isNull():
-                self.file_icon.setPixmap(icon.pixmap(48,48))
+            icon=self._file_type_preview_icon(target) if info.suffix() else QFileIconProvider().icon(info)
+            if icon.isNull():
+                icon=self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
+            self.file_icon.setPixmap(icon.pixmap(48,48))
         except Exception:
-            pass
+            self.file_icon.setPixmap(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon).pixmap(48,48))
 
     def _probe_remote_size(self):
         if getattr(self,'_media_mode',False): return
