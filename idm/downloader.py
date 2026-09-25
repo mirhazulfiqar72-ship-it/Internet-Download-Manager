@@ -8,6 +8,8 @@ from PySide6.QtCore import QObject, Signal, QRunnable
 USER_AGENT = "OriginalDownloadManager/1.2.2"
 
 REQUEST_HEADERS = {'User-Agent': USER_AGENT, 'Accept': '*/*', 'Accept-Encoding': 'identity'}
+STREAM_CHUNK_SIZE = 64 * 1024
+PROGRESS_INTERVAL = 0.1
 
 
 def safe_filename(name):
@@ -228,7 +230,7 @@ class DownloadTask(QRunnable):
             if not re.match(rf'^bytes\s+{offset}-{end}/{self._current_total}$', cr, re.I):
                 raise IOError('Server returned an invalid Content-Range response')
             with open(part,'ab') as f:
-                for chunk in r.iter_content(1024*1024):
+                for chunk in r.iter_content(STREAM_CHUNK_SIZE):
                     if self.stop_event.is_set() or self.pause_event.is_set() or self._range_abort.is_set(): return
                     if not chunk:continue
                     f.write(chunk); self._emit_aggregate(len(chunk))
@@ -243,7 +245,7 @@ class DownloadTask(QRunnable):
         with self._lock:
             self._aggregate_bytes+=received
             now=time.monotonic()
-            if now-self._last_emit<0.2:return
+            if now-self._last_emit<PROGRESS_INTERVAL:return
             total=self._aggregate_bytes
             speed=max(0,total-self._last_bytes)/max(now-self._last_emit,0.001)
             self._last_emit=now; self._last_bytes=total
@@ -274,7 +276,7 @@ class DownloadTask(QRunnable):
             mode='ab' if existing and supports else 'wb'; downloaded=existing
             started=time.monotonic(); last_t=started; last_b=downloaded
             with open(path,mode) as f:
-                for chunk in r.iter_content(1024*1024):
+                for chunk in r.iter_content(STREAM_CHUNK_SIZE):
                     if self.stop_event.is_set(): self.storage.update(rid,status='Stopped',downloaded=downloaded,total=total); self.signals.stopped.emit(); return
                     if self.pause_event.is_set(): self.storage.update(rid,status='Paused',downloaded=downloaded,total=total); self.signals.status.emit('Paused','Resume available'); return
                     if not chunk:continue
@@ -282,7 +284,7 @@ class DownloadTask(QRunnable):
                         elapsed=time.monotonic()-started; expected=(downloaded-existing)/max(self.speed_limit_bps,1)
                         if expected>elapsed:time.sleep(min(expected-elapsed,2.0))
                     f.write(chunk); downloaded+=len(chunk); now=time.monotonic()
-                    if now-last_t>=0.2:
+                    if now-last_t>=PROGRESS_INTERVAL:
                         speed=(downloaded-last_b)/max(now-last_t,.001); eta=(total-downloaded)/speed if total and speed>0 else 0
                         self.storage.update(rid,status='Downloading',downloaded=downloaded,total=total); self.signals.progress.emit(downloaded,total,speed,eta); last_t,last_b=now,downloaded
             ok, actual=self._verify_hash(path)
