@@ -443,7 +443,7 @@ class DownloadProgressDialog(QDialog):
         # exactly as a title-bar control. Native Minimize still goes to the Windows taskbar.
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_DeleteOnClose, False)
-        self.setWindowTitle('Download progress'); self.resize(600,460); self.setModal(False)
+        self.setWindowTitle('Download progress'); self.resize(512,448); self.setModal(False)
         self.setWindowIcon(self._download_icon())
         self.download_tray=QSystemTrayIcon(self)
         self.download_tray.setIcon(self._tray_download_icon())
@@ -454,7 +454,7 @@ class DownloadProgressDialog(QDialog):
         self.download_tray.activated.connect(lambda reason: self.restore_progress() if reason in (QSystemTrayIcon.Trigger,QSystemTrayIcon.DoubleClick) else None)
         QApplication.instance().aboutToQuit.connect(self.download_tray.hide)
         root=QVBoxLayout(self); root.setContentsMargins(1,1,1,1); root.setSpacing(0)
-        self.titlebar=QFrame(); self.titlebar.setObjectName('downloadTitleBar'); self.titlebar.setFixedHeight(34)
+        self.titlebar=QFrame(); self.titlebar.setObjectName('downloadTitleBar'); self.titlebar.setFixedHeight(30)
         self.titlebar.installEventFilter(self); self._drag_offset=None
         th=QHBoxLayout(self.titlebar); th.setContentsMargins(8,0,0,0); th.setSpacing(0)
         icon=QLabel(); icon.setPixmap(self._download_icon().pixmap(20,20)); th.addWidget(icon); th.addSpacing(6)
@@ -463,14 +463,22 @@ class DownloadProgressDialog(QDialog):
         self.min_btn=QToolButton(); self.min_btn.setText('—'); self.min_btn.setToolTip('Minimize to taskbar'); self.min_btn.clicked.connect(self.showMinimized)
         self.max_btn=QToolButton(); self.max_btn.setText('□'); self.max_btn.setToolTip('Maximize / Restore'); self.max_btn.clicked.connect(self.toggle_maximize)
         self.close_btn=QToolButton(); self.close_btn.setText('×'); self.close_btn.setToolTip('Close progress window'); self.close_btn.clicked.connect(self.close)
-        for b in (self.tray_btn,self.min_btn,self.max_btn,self.close_btn): b.setFixedSize(42,34); b.setObjectName('titleButton'); th.addWidget(b)
+        for b in (self.tray_btn,self.min_btn,self.max_btn,self.close_btn): b.setFixedSize(42,30); b.setObjectName('titleButton'); th.addWidget(b)
         root.addWidget(self.titlebar)
-        body=QWidget(); bodylay=QVBoxLayout(body); bodylay.setContentsMargins(10,8,10,8); root.addWidget(body,1)
+        body=QWidget(); bodylay=QVBoxLayout(body); bodylay.setContentsMargins(16,6,16,6); root.addWidget(body,1)
         root=bodylay
-        self.setStyleSheet("""#downloadTitleBar{background:#0878c9;} #downloadTitleText{color:white;font-weight:600;} QToolButton#titleButton{border:0;background:transparent;color:white;font-size:15px;} QToolButton#titleButton:hover{background:rgba(255,255,255,45);}""")
+        self.setStyleSheet("""#downloadTitleBar{background:#0878c9;} #downloadTitleText{color:white;font-weight:600;} QToolButton#titleButton{border:0;background:transparent;color:white;font-size:15px;} QToolButton#titleButton:hover{background:rgba(255,255,255,45);}
+            QTabWidget::pane{border:1px solid #a7a7a7;background:white;}
+            QTabBar::tab{padding:3px 7px;}
+            QProgressBar#downloadProgressBar{height:16px;border:1px solid #929292;background:#f2f2f2;text-align:center;}
+            QProgressBar#downloadProgressBar::chunk{background:#18b52a;}
+            QProgressBar#connectionProgressBar{height:15px;border:1px solid #929292;background:#f2f2f2;}
+            QProgressBar#connectionProgressBar::chunk{background:#1981d1;width:40px;margin-right:38px;border-right:1px solid #df3333;}
+            QTableWidget{gridline-color:#d4d4d4;alternate-background-color:#ededed;}
+        """)
         self.tabs=QTabWidget(); root.addWidget(self.tabs)
-        status=QWidget(); form=QFormLayout(status)
-        self.url=QLineEdit(); self.url.setReadOnly(True); form.addRow('URL:',self.url)
+        status=QWidget(); form=QFormLayout(status); form.setContentsMargins(10,3,10,3); form.setVerticalSpacing(0); form.setHorizontalSpacing(8)
+        self.url=QLineEdit; self.url.setReadOnly(True); form.addRow('URL:',self.url)
         self.state=QLabel('Connecting...'); form.addRow('Status:',self.state)
         self.size_lbl=QLabel('--'); form.addRow('File size:',self.size_lbl)
         self.done_lbl=QLabel('0 B'); form.addRow('Downloaded:',self.done_lbl)
@@ -487,14 +495,15 @@ class DownloadProgressDialog(QDialog):
         self.hang=QCheckBox('Hang up modem when done'); self.exit_app=QCheckBox('Exit Internet Download Manager when done'); self.shutdown=QCheckBox('Turn off computer when done')
         for w in (self.hang,self.exit_app,self.shutdown): w.setEnabled(False); of.addRow(w)
         self.tabs.addTab(opt,'Options on completion')
-        self.bar=QProgressBar(); self.bar.setRange(0,1000); root.addWidget(self.bar)
+        self.bar=QProgressBar(); self.bar.setObjectName('downloadProgressBar'); self.bar.setRange(0,1000); self.bar.setTextVisible(False); self.bar.setFixedHeight(16); root.addWidget(self.bar)
         # Controls live directly below the green progress bar.
         controls=QHBoxLayout(); self.hide_btn=QPushButton('<< Hide details'); self.action_btn=QPushButton('Pause'); self.cancel_btn=QPushButton('Cancel')
+        self.hide_btn.setFixedSize(138,22); self.action_btn.setFixedSize(80,22); self.cancel_btn.setFixedSize(72,22)
         self.hide_btn.clicked.connect(self.toggle_details); self.action_btn.clicked.connect(self.toggle_pause); self.cancel_btn.clicked.connect(self.cancel_download)
         controls.addWidget(self.hide_btn); controls.addStretch(); controls.addWidget(self.action_btn); controls.addWidget(self.cancel_btn); root.addLayout(controls)
         self.details=QWidget(); dl=QVBoxLayout(self.details); dl.setContentsMargins(0,0,0,0); dl.addWidget(QLabel('Start positions and download progress by connections'))
-        self.connection_bar=QProgressBar(); self.connection_bar.setRange(0,1000); self.connection_bar.setTextVisible(False); dl.addWidget(self.connection_bar)
-        self.connections=QTableWidget(0,3); self.connections.setHorizontalHeaderLabels(['N.','Downloaded','Info']); self.connections.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch); dl.addWidget(self.connections); root.addWidget(self.details)
+        self.connection_bar=QProgressBar(); self.connection_bar.setObjectName('connectionProgressBar'); self.connection_bar.setRange(0,1000); self.connection_bar.setValue(1000); self.connection_bar.setTextVisible(False); self.connection_bar.setFixedHeight(15); dl.addWidget(self.connection_bar)
+        self.connections=QTableWidget(0,3); self.connections.setHorizontalHeaderLabels(['N.','Downloaded','Info']); self.connections.setAlternatingRowColors(True); self.connections.setShowGrid(False); self.connections.verticalHeader().setVisible(False); self.connections.verticalHeader().setDefaultSectionSize(20); self.connections.horizontalHeader().setFixedHeight(23); self.connections.setColumnWidth(0,32); self.connections.setColumnWidth(1,90); self.connections.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch); self.connections.setMinimumHeight(126); dl.addWidget(self.connections); root.addWidget(self.details)
         self.refresh_static(); self.sync_timer=QTimer(self); self.sync_timer.timeout.connect(self.sync); self.sync_timer.start(500); self.sync()
     def _download_icon(self):
         # Small green right-arrow indicator inspired by the user's reference,
@@ -570,9 +579,9 @@ class DownloadProgressDialog(QDialog):
         r=self.owner.storage.get(self.rid)
         if not r:return
         st=str(r['status']); d=int(r['downloaded'] or 0); t=int(r['total'] or 0); pct=int(1000*d/t) if t else 0
-        percent=int(100*d/t) if t else 0; self.setWindowTitle(f"{percent}% {r['filename']}")
+        percent=int(100*d/t) if t else 0; title=f"{percent}% {r['filename']}"; self.setWindowTitle(title); self.title_label.setText(title); self.title_label.setToolTip(str(r['filename']))
         self.state.setText('Receiving data...' if st=='Downloading' else st); self.size_lbl.setText(self.owner.size(t)); self.done_lbl.setText(f'{self.owner.size(d)} ({(d*100/t):.2f}%)' if t else self.owner.size(d)); self.resume_lbl.setText('Yes' if st in ('Downloading','Paused','Retrying','Connecting') else ('Completed' if st=='Completed' else '--'))
-        self.bar.setValue(pct); self.connection_bar.setValue(pct)
+        self.bar.setValue(pct); self.connection_bar.setValue(1000)
         if st=='Paused': self.action_btn.setText('Start')
         elif st in ('Completed','Failed','Stopped'): self.action_btn.setText('Start'); self.action_btn.setEnabled(st!='Completed')
         else: self.action_btn.setText('Pause'); self.action_btn.setEnabled(True)
@@ -583,8 +592,9 @@ class DownloadProgressDialog(QDialog):
         if status=='Downloading' and previous is not None:speed=previous*0.75+speed*0.25
         self._display_speed=speed
         r0=self.owner.storage.get(self.rid); percent=int(100*downloaded/total) if total else 0
-        if r0: self.setWindowTitle(f"{percent}% {r0['filename']}")
-        shown='Receiving data...' if status=='Downloading' else status; self.state.setText(shown); self.size_lbl.setText(self.owner.size(total)); self.done_lbl.setText(f'{self.owner.size(downloaded)} ({(downloaded*100/total):.2f}%)' if total else self.owner.size(downloaded)); self.speed_lbl.setText(self.owner.speed_text(speed)); self.live_speed.setText(self.owner.speed_text(speed)); self.eta_lbl.setText(self.owner.eta_text(eta)); pct=int(1000*downloaded/total) if total else 0; self.bar.setValue(pct); self.connection_bar.setValue(pct)
+        if r0:
+            title=f"{percent}% {r0['filename']}"; self.setWindowTitle(title); self.title_label.setText(title); self.title_label.setToolTip(str(r0['filename']))
+        shown='Receiving data...' if status=='Downloading' else status; self.state.setText(shown); self.size_lbl.setText(self.owner.size(total)); self.done_lbl.setText(f'{self.owner.size(downloaded)} ({(downloaded*100/total):.2f}%)' if total else self.owner.size(downloaded)); self.speed_lbl.setText(self.owner.speed_text(speed)); self.live_speed.setText(self.owner.speed_text(speed)); self.eta_lbl.setText(self.owner.eta_text(eta)); pct=int(1000*downloaded/total) if total else 0; self.bar.setValue(pct); self.connection_bar.setValue(1000)
         r=self.owner.storage.get(self.rid); n=max(1,int(r['connections'] or self.owner.connections)) if r else 1
         if self.connections.rowCount()!=n:
             self.connections.setRowCount(n)

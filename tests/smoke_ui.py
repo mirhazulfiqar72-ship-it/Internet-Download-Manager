@@ -25,6 +25,7 @@ try:
     w.context_menu(QPoint(-1,-1))
     w.storage.update(rid,status='Downloading',downloaded=50,total=100)
     dlg=module.DownloadProgressDialog(w,rid)
+    assert dlg.width()==512 and dlg.height()==448
     dlg.update_live(50,100,1000,1)
     before=dlg.done_lbl.text();dlg.sync()
     assert dlg.done_lbl.text()==before and '50.00%' in before
