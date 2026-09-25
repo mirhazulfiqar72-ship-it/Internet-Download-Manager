@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://mirhazulfiqar72-ship-it.github.io/Internet-Download-Manager/sitemap.xml
