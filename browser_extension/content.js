@@ -70,7 +70,7 @@
 
   function isFacebookInsightsPage() {
     const page = new URL(location.href);
-    return /(^|\\.)facebook\\.com$/i.test(page.hostname) && /^\\/content\\/insights\\/?$/i.test(page.pathname);
+    return /(^|\.)facebook\.com$/i.test(page.hostname) && /^\/content\/insights\/?$/i.test(page.pathname);
   }
 
   function facebookInsightsVideoUrl(video) {
@@ -96,7 +96,7 @@
       entry.pending = false;
       entry.expires = Date.now() + (mediaUrl ? 30000 : 15000);
       if (mediaUrl) {
-        const fileType = /\\.(m4v|mov|webm)(?:$|[?#])/i.exec(mediaUrl)?.[1]?.toUpperCase() || 'MP4';
+        const fileType = /\.(m4v|mov|webm)(?:$|[?#])/i.exec(mediaUrl)?.[1]?.toUpperCase() || 'MP4';
         entry.directUrl = mediaUrl;
         entry.directType = fileType;
         entry.result = {ok:true, title:cleanVideoTitle(), formats:[]};
