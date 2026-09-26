@@ -44,15 +44,20 @@ def task(path,url,connections=4,payload=DATA):
 try:
     with tempfile.TemporaryDirectory() as temp:
         root=Path(temp)
-        d=task(root/'multi.bin',base+'/range');d.run()
+        d=task(root/'direct.bin',base+'/range');d.run()
         assert d.storage.data['status']=='Completed',d.storage.data
-        assert (root/'multi.bin').read_bytes()==DATA
-        assert Handler.heads==1 and Handler.ranges==2,(Handler.heads,Handler.ranges)
-        # Resume existing segments with the unchanged two-range partition.
-        path=root/'resume.bin';parts=Path(str(path)+'.idm-parts');parts.mkdir()
+        assert (root/'direct.bin').read_bytes()==DATA
+        # HTTP downloads stream directly to the target; no range-part files are made.
+        assert Handler.heads==0 and Handler.ranges==0,(Handler.heads,Handler.ranges)
+        partdir=Path(str(root/'direct.bin')+'.idm-parts')
+        assert not partdir.exists()
+        assert not Path(str(root/'direct.bin')+'.idm-assembling').exists()
+        # Clean stale range chunks left behind by older versions, then download normally.
+        path=root/'legacy.bin';parts=Path(str(path)+'.idm-parts');parts.mkdir()
         (parts/'part-00.bin').write_bytes(DATA[:1024*1024])
         d=task(path,base+'/range');d.run()
         assert d.storage.data['status']=='Completed' and path.read_bytes()==DATA
+        assert not parts.exists()
         d=task(root/'fallback.bin',base+'/ignore');d.run()
         assert d.storage.data['status']=='Completed',d.storage.data
         assert (root/'fallback.bin').read_bytes()==DATA
@@ -71,5 +76,5 @@ try:
             opts=ydl.call_args[0][0]
             assert opts['concurrent_fragment_downloads']==6 and opts['buffersize']==1024*1024
             assert opts['ratelimit'] is None
-        print('Download integrity, parallel ranges, single HEAD, resume, fallback and media concurrency passed')
+        print('Download integrity, direct streaming, stale-part cleanup, fallback and media concurrency passed')
 finally:server.shutdown();server.server_close()
