@@ -546,7 +546,7 @@ class DownloadProgressDialog(QDialog):
         """)
         self.tabs=QTabWidget(); root.addWidget(self.tabs)
         status=QWidget(); form=QFormLayout(status); form.setContentsMargins(10,3,10,3); form.setVerticalSpacing(0); form.setHorizontalSpacing(8)
-        self.url=QLineEdit; self.url.setReadOnly(True); form.addRow('URL:',self.url)
+        self.url=QLineEdit(); self.url.setReadOnly(True); form.addRow('URL:',self.url)
         self.state=QLabel('Connecting...'); form.addRow('Status:',self.state)
         self.size_lbl=QLabel('--'); form.addRow('File size:',self.size_lbl)
         self.done_lbl=QLabel('0 B'); form.addRow('Downloaded:',self.done_lbl)
