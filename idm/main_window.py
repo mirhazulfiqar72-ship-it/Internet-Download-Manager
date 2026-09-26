@@ -16,6 +16,7 @@ from .downloader import DownloadTask, filename_from_response, safe_filename
 from .settings import AppSettings
 from .release import VERSION, UPDATE_MANIFEST_URL
 from .options_dialog import SettingsDialog
+from .scheduler_dialog import SchedulerDialog
 import requests
 import hashlib, socket
 
@@ -172,7 +173,7 @@ class AddDialog(QDialog):
         ''')
         later.clicked.connect(self.later); start.clicked.connect(self.start_now); cancel.clicked.connect(self.reject)
         buttons.addWidget(later); buttons.addWidget(start); buttons.addWidget(cancel); buttons.addStretch(1); root.addLayout(buttons)
-        self.queue=QComboBox(); self.queue.addItems(['Main','High Priority','Later']); self.queue.hide()
+        self.queue=QComboBox(); self.queue.addItems(['Main','High Priority','Later','Synchronization'] + QSettings('OriginalDownloadManager','InternetDownloadManager').value('scheduler/custom_queues',[],type=list)); self.queue.hide()
         self.priority=QSpinBox(); self.priority.setRange(0,100); self.priority.hide()
         self.schedule=QCheckBox(); self.schedule.hide(); self.sched=QDateTimeEdit(QDateTime.currentDateTime()); self.sched.hide()
         self.category.currentTextChanged.connect(self._set_category_folder)
@@ -781,7 +782,7 @@ class MainWindow(QMainWindow):
         add_tool('Delete Co...','delete_done',self.delete_completed,'Delete completed downloads from the list')
         separator()
         add_tool('Options','options',self.show_settings,'Open options and settings')
-        add_tool('Scheduler','scheduler',self.show_settings,'Open scheduler settings')
+        add_tool('Scheduler','scheduler',self.show_scheduler,'Open scheduler')
         separator()
         add_tool('Start Queue','startq',self.resume_all,'Start queued/paused downloads')
         add_tool('Stop Queue','stopq',self.pause_all,'Pause active queue')
@@ -812,7 +813,7 @@ class MainWindow(QMainWindow):
         finished=QTreeWidgetItem(['Finished']); finished.setIcon(0,self._category_icon('finished')); finished.setData(0,Qt.UserRole,('special','finished')); self.nav_tree.addTopLevelItem(finished)
         grabber=QTreeWidgetItem(['Grabber projects']); grabber.setIcon(0,self._category_icon('grabber')); grabber.setData(0,Qt.UserRole,('special','media')); self.nav_tree.addTopLevelItem(grabber)
         queues=QTreeWidgetItem(['Queues']); queues.setIcon(0,self._category_icon('queue')); queues.setData(0,Qt.UserRole,('all','')); self.nav_tree.addTopLevelItem(queues)
-        for label,qname in [('Main Queue','Main'),('High Priority','High Priority'),('Later','Later')]:
+        for label,qname in [('Main Queue','Main'),('High Priority','High Priority'),('Later','Later'),('Synchronization Queue','Synchronization')] + [(str(n)+' Queue',str(n)) for n in QSettings('OriginalDownloadManager','InternetDownloadManager').value('scheduler/custom_queues',[],type=list)]:
             it=QTreeWidgetItem([label]); it.setIcon(0,self._category_icon('folder')); it.setData(0,Qt.UserRole,('queue',qname)); queues.addChild(it)
         all_item.setExpanded(True); queues.setExpanded(True); self.nav_tree.setCurrentItem(all_item)
         self.nav_tree.currentItemChanged.connect(self._tree_filter_changed)
@@ -1000,11 +1001,11 @@ class MainWindow(QMainWindow):
         act(downloads,'Pause All',self.pause_all,'pause'); act(downloads,'Stop All',self.stop_all,'stop'); downloads.addSeparator()
         act(downloads,'Delete All Completed',self.delete_completed,'remove'); downloads.addSeparator()
         act(downloads,'Find (Ctrl-F)',self.find_download,'find','Ctrl+F'); act(downloads,'Find Next (F3)',self.find_next,'find','F3'); downloads.addSeparator()
-        act(downloads,'Scheduler',self.show_settings,'settings')
+        act(downloads,'Scheduler',self.show_scheduler,'scheduler')
         startq=sub(downloads,'Start queue','start')
-        for label in ('Main','High Priority','Later'): act(startq,label,lambda checked=False,n=label:self.start_queue_named(n),'start')
+        for label in ['Main','High Priority','Later','Synchronization'] + [str(n) for n in QSettings('OriginalDownloadManager','InternetDownloadManager').value('scheduler/custom_queues',[],type=list)]: act(startq,label,lambda checked=False,n=label:self.start_queue_named(n),'start')
         stopq=sub(downloads,'Stop queue','stop')
-        for label in ('Main','High Priority','Later'): act(stopq,label,lambda checked=False,n=label:self.stop_queue_named(n),'stop')
+        for label in ['Main','High Priority','Later','Synchronization'] + [str(n) for n in QSettings('OriginalDownloadManager','InternetDownloadManager').value('scheduler/custom_queues',[],type=list)]: act(stopq,label,lambda checked=False,n=label:self.stop_queue_named(n),'stop')
         downloads.addSeparator(); limiter=sub(downloads,'Speed Limiter','down'); act(limiter,'Turn Off',lambda:self.set_speed_limit(0),'stop'); act(limiter,'Set Limit...',self.speed_limit_dialog,'settings')
         downloads.addSeparator(); act(downloads,'Options',self.show_settings,'settings')
 
@@ -1740,7 +1741,40 @@ class MainWindow(QMainWindow):
             self.tasks.pop(rid,None); self.pauses.pop(rid,None); self.stops.pop(rid,None)
         dlg=self.progress_dialogs.get(rid)
         if dlg: dlg.sync()
+    def _run_scheduled_queues(self):
+        q=QSettings('OriginalDownloadManager','InternetDownloadManager')
+        now=QDateTime.currentDateTime()
+        today=now.date().toString('yyyy-MM-dd')
+        minute=now.time().toString('HH:mm')
+        weekday={1:'monday',2:'tuesday',3:'wednesday',4:'thursday',5:'friday',6:'saturday',7:'sunday'}[now.date().dayOfWeek()]
+        queues=['Main','High Priority','Later','Synchronization']
+        queues += [str(name) for name in q.value('scheduler/custom_queues',[],type=list)]
+        if not hasattr(self,'_scheduler_startup_run'): self._scheduler_startup_run=set()
+        for name in dict.fromkeys(queues):
+            prefix='scheduler/queues/'+name+'/'
+            if q.value(prefix+'startup',False,type=bool) and name not in self._scheduler_startup_run:
+                self._scheduler_startup_run.add(name)
+                self.start_queue_named(name)
+            if q.value(prefix+'start_enabled',False,type=bool):
+                if q.value(prefix+'once',True,type=bool):
+                    target_date=q.value(prefix+'start_date',now.date(),type=type(now.date()))
+                    target_time=q.value(prefix+'start_time',None,type=type(now.time()))
+                    due=(target_date==now.date() and target_time is not None and target_time<=now.time())
+                else:
+                    target_time=q.value(prefix+'start_time',None,type=type(now.time()))
+                    due=(target_time is not None and target_time.toString('HH:mm')==minute and
+                         q.value(prefix+'day_'+weekday,True,type=bool))
+                if due and q.value(prefix+'last_start','',type=str)!=today:
+                    q.setValue(prefix+'last_start',today)
+                    self.start_queue_named(name)
+            if q.value(prefix+'stop_enabled',False,type=bool):
+                stop_time=q.value(prefix+'stop_time',None,type=type(now.time()))
+                if stop_time is not None and stop_time.toString('HH:mm')==minute and q.value(prefix+'last_stop','',type=str)!=today:
+                    q.setValue(prefix+'last_stop',today)
+                    self.stop_queue_named(name)
+
     def queue_tick(self):
+        self._run_scheduled_queues()
         if len(self.tasks)>=self.max_downloads:return
         for r in self.storage.all():
             if len(self.tasks)>=self.max_downloads:break
@@ -1950,7 +1984,7 @@ class MainWindow(QMainWindow):
         m.addSeparator();action('Refresh download address',self.refresh_address,len(ids)==1 and not active and not complete)
         m.addSeparator();action('Remove',self.delete_selected)
         m.addSeparator();q=m.addMenu('Add to queue')
-        for name in ('Main','High Priority','Later'):
+        for name in ['Main','High Priority','Later','Synchronization'] + [str(n) for n in QSettings('OriginalDownloadManager','InternetDownloadManager').value('scheduler/custom_queues',[],type=list)]:
             q.addAction(name,lambda checked=False,n=name:self.assign_queue(n))
         action('Delete from queue',lambda:self.assign_queue(''),any(x['queue_name'] for x in rows))
         m.addSeparator();d=m.addMenu('On double click')
@@ -2100,6 +2134,13 @@ class MainWindow(QMainWindow):
         try: self.browser_bridge.stop()
         except Exception: pass
         QApplication.instance().setProperty('really_quit',True); QApplication.instance().quit()
+    def show_scheduler(self):
+        d=SchedulerDialog(self,self.storage,self.settings)
+        d.exec()
+        self.max_downloads=max(1,min(20,self.settings.max_downloads))
+        self.speed_limit_kbps=max(0,self.settings.speed_limit_kbps)
+        self.refresh_all_rows()
+
     def show_settings(self):
         d=SettingsDialog(self,self.settings)
         d.applied.connect(self._settings_applied)
