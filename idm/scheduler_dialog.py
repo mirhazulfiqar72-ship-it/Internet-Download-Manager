@@ -67,14 +67,22 @@ class SchedulerDialog(QDialog):
 
         right = QVBoxLayout()
         right.setSpacing(5)
+        from PySide6.QtWidgets import QStackedWidget
+        self.right_stack = QStackedWidget()
+        self.queue_page = QWidget()
+        queue_layout = QVBoxLayout(self.queue_page)
+        queue_layout.setContentsMargins(0, 0, 0, 0)
         self.heading = QLabel('Main download queue')
         self.heading.setAlignment(Qt.AlignHCenter)
-        right.addWidget(self.heading)
+        queue_layout.addWidget(self.heading)
         self.tabs = QTabWidget()
         self.tabs.addTab(self._make_schedule_page(), 'Schedule')
         self.tabs.addTab(self._make_files_page(), 'Files in the queue')
-        self.tabs.addTab(self._make_limits_page(), 'Download limits')
-        right.addWidget(self.tabs, 1)
+        queue_layout.addWidget(self.tabs, 1)
+        self.limits_page = self._make_limits_page()
+        self.right_stack.addWidget(self.queue_page)
+        self.right_stack.addWidget(self.limits_page)
+        right.addWidget(self.right_stack, 1)
         body.addLayout(right, 1)
 
         footer = QHBoxLayout()
@@ -176,7 +184,8 @@ class SchedulerDialog(QDialog):
         for offset in (0, 3, 5):
             col = QVBoxLayout()
             col.setSpacing(0)
-            for name in names[offset:offset + (3 if offset < 5 else 2)]:
+            grouped = (names[0:3], names[3:5], names[5:7])
+            for name in grouped[len(cols)]:
                 col.addWidget(self.days[name])
             cols.append(col)
         for col in cols:
@@ -316,16 +325,12 @@ class SchedulerDialog(QDialog):
         kind, value = item.data(0, Qt.UserRole) or ('queue', 'Main')
         if kind == 'limits':
             self.heading.setText('Download limits')
-            self.tabs.setTabEnabled(0, False)
-            self.tabs.setTabEnabled(1, False)
-            self.tabs.setCurrentIndex(2)
+            self.right_stack.setCurrentWidget(self.limits_page)
             self.start_button.setEnabled(False)
             self.stop_button.setEnabled(False)
             self.delete_queue.setEnabled(False)
             return
-        self.tabs.setTabEnabled(0, True)
-        self.tabs.setTabEnabled(1, True)
-        self.tabs.setTabEnabled(2, True)
+        self.right_stack.setCurrentWidget(self.queue_page)
         self.tabs.setCurrentIndex(0)
         self.queue_name = value
         self.heading.setText(item.text())
