@@ -244,6 +244,9 @@ class SchedulerDialog(QDialog):
         outer.addWidget(self.force)
         outer.addStretch(1)
         self.start_enabled.toggled.connect(self._sync_schedule_enabled)
+        self.stop_enabled.toggled.connect(self._sync_schedule_enabled)
+        self.retries_enabled.toggled.connect(self._sync_schedule_enabled)
+        self.open_done.toggled.connect(self._sync_schedule_enabled)
         self.once_radio.toggled.connect(lambda checked: self.start_date.setEnabled(checked and self.start_enabled.isChecked()))
         self.daily_radio.toggled.connect(lambda checked: [w.setEnabled(checked and self.start_enabled.isChecked()) for w in self.days.values()])
         return page
@@ -323,7 +326,9 @@ class SchedulerDialog(QDialog):
         if not item:
             return
         kind, value = item.data(0, Qt.UserRole) or ('queue', 'Main')
+        self.current_kind = kind
         if kind == 'limits':
+            self.queue_name = None
             self.heading.setText('Download limits')
             self.right_stack.setCurrentWidget(self.limits_page)
             self.start_button.setEnabled(False)
@@ -472,18 +477,18 @@ class SchedulerDialog(QDialog):
 
     def _start_now(self):
         self.apply()
-        if hasattr(self, 'queue_name'):
+        if getattr(self, 'current_kind', 'queue') == 'queue' and self.queue_name:
             self.main.start_queue_named(self.queue_name)
 
     def _stop_now(self):
-        if hasattr(self, 'queue_name'):
+        if getattr(self, 'current_kind', 'queue') == 'queue' and self.queue_name:
             self.main.stop_queue_named(self.queue_name)
 
     def _help(self):
         QMessageBox.information(self, 'Scheduler', 'Choose a queue, set its schedule, then select Apply. Start now and Stop control the selected queue.')
 
     def apply(self):
-        if hasattr(self, 'queue_name'):
+        if getattr(self, 'current_kind', 'queue') == 'queue' and self.queue_name:
             q = self.q
             pairs = {
                 'one_time': self.one_time.isChecked(), 'startup': self.startup.isChecked(),
