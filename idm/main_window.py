@@ -702,6 +702,15 @@ class DownloadProgressDialog(QDialog):
         self.close()
         self.deleteLater()
 
+class DateAddedTableItem(QTableWidgetItem):
+    """Sort the displayed Date Added column by its underlying timestamp."""
+    def __lt__(self, other):
+        try:
+            return float(self.data(Qt.UserRole) or 0) < float(other.data(Qt.UserRole) or 0)
+        except (TypeError, ValueError):
+            return super().__lt__(other)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, startup_url='', startup_mode='add', startup_quality='', startup_kind='video', startup_title=''):
         super().__init__(); self.setWindowTitle(f'Internet Download Manager {VERSION}'); self.resize(1180,680); self.setMinimumSize(900,560)
@@ -1076,13 +1085,17 @@ class MainWindow(QMainWindow):
                 sp,et=live
                 self.update_row(r['id'],speed=sp,eta=et,status=r['status'])
         self.table.setSortingEnabled(True)
+        # Oldest first keeps each newly added download at the bottom of the list.
+        self.table.sortItems(7,Qt.AscendingOrder)
         self.refresh_visibility()
     def insert_row(self,r):
         sorting=self.table.isSortingEnabled(); self.table.setSortingEnabled(False)
         i=self.table.rowCount(); self.table.insertRow(i)
         vals=self._classic_row_values(r,0,0)
         for c,v in enumerate(vals):
-            it=QTableWidgetItem(v)
+            it=DateAddedTableItem(v) if c==7 else QTableWidgetItem(v)
+            if c==7:
+                it.setData(Qt.UserRole, float(r['created'] or 0))
             if c==0:
                 it.setData(Qt.UserRole,r['id'])
                 it.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))

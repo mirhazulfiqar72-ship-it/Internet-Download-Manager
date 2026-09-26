@@ -1,5 +1,5 @@
 #define AppName "Internet Download Manager"
-#define AppVersion "1.5.17"
+#define AppVersion "1.5.18"
 #define AppPublisher "Mirha Zulfiqar"
 #define AppExeName "InternetDownloadManager.exe"
 [Setup]
