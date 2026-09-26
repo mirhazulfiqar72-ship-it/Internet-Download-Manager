@@ -68,6 +68,20 @@
     return location.href + '|' + (currentVideo && (currentVideo.currentSrc || currentVideo.src) || '');
   }
 
+  function isFacebookInsightsPage() {
+    const page = new URL(location.href);
+    return /(^|\\.)facebook\\.com$/i.test(page.hostname) && /^\\/content\\/insights\\/?$/i.test(page.pathname);
+  }
+
+  function facebookInsightsVideoUrl(video) {
+    const source = directMediaUrl(video);
+    if (!source) return '';
+    try {
+      const host = new URL(source).hostname.toLowerCase();
+      return host === 'fbcdn.net' || host.endsWith('.fbcdn.net') ? source : '';
+    } catch (_) { return ''; }
+  }
+
   function prepareQualities() {
     const key = mediaKey();
     const pageUrl = location.href;
@@ -77,6 +91,20 @@
     formatCache.set(key, entry);
     // Keep metadata only; download URLs are still resolved by the desktop app.
     if (formatCache.size > 12) formatCache.delete(formatCache.keys().next().value);
+    if (isFacebookInsightsPage()) {
+      const mediaUrl = facebookInsightsVideoUrl(currentVideo);
+      entry.pending = false;
+      entry.expires = Date.now() + (mediaUrl ? 30000 : 15000);
+      if (mediaUrl) {
+        const fileType = /\\.(m4v|mov|webm)(?:$|[?#])/i.exec(mediaUrl)?.[1]?.toUpperCase() || 'MP4';
+        entry.directUrl = mediaUrl;
+        entry.directType = fileType;
+        entry.result = {ok:true, title:cleanVideoTitle(), formats:[]};
+      } else {
+        entry.error = 'This Facebook Insights preview does not expose a direct video file. Open the original video post and try again.';
+      }
+      return entry;
+    }
     requestFormats(pageUrl)
       .then(result => {
         entry.result = result && result.ok && result.formats && result.formats.length ? result : null;
@@ -126,8 +154,7 @@
     closeMenu();
   }
 
-  function sendDirect() {
-    const url = directMediaUrl(currentVideo);
+  function sendDirect(url = directMediaUrl(currentVideo)) {
     if (url) {
       chrome.runtime.sendMessage({action:'directMedia', idmUrl:url});
       closeMenu();
@@ -169,6 +196,23 @@
     menuStatus('').remove();
       const title = result.title || cleanVideoTitle();
       const short = title.length > 31 ? title.slice(0,31).trim() + '...' : title;
+      if (entry.directUrl) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.textContent = `${short} — ${entry.directType} file — Original quality`;
+        item.title = `${title} — ${entry.directType} file — Original quality`;
+        item.style.cssText = 'display:block;width:100%;text-align:left;padding:9px 13px;border:0;background:#fff;color:#1f2937;font:14px Segoe UI,Arial,sans-serif;cursor:pointer';
+        item.addEventListener('mouseenter', () => item.style.background = '#eef6ff');
+        item.addEventListener('mouseleave', () => item.style.background = '#fff');
+        item.addEventListener('click', e => {
+          e.preventDefault(); e.stopPropagation();
+          if (page !== mediaKey()) { closeMenu(); return; }
+          sendDirect(entry.directUrl);
+        });
+        menu.appendChild(item);
+        menu.style.display = 'block';
+        return;
+      }
       result.formats.forEach(opt => {
         const item = document.createElement('button');
         item.type = 'button';
