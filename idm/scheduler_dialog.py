@@ -41,7 +41,7 @@ class SchedulerDialog(QDialog):
         left_layout.setSpacing(4)
         head = QHBoxLayout()
         icon = QLabel()
-        icon.setPixmap(self.style().standardIcon(QStyle.SP_ComputerIcon).pixmap(32, 32))
+        icon.setPixmap(self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon).pixmap(32, 32))
         head.addWidget(icon)
         head.addWidget(QLabel('Queues'))
         head.addStretch(1)
@@ -54,7 +54,7 @@ class SchedulerDialog(QDialog):
         self._add_queues()
         limits = QTreeWidgetItem(['Download limits'])
         limits.setData(0, Qt.UserRole, ('limits', ''))
-        limits.setIcon(0, self.style().standardIcon(QStyle.SP_MessageBoxWarning))
+        limits.setIcon(0, self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning))
         self.tree.addTopLevelItem(limits)
         left_layout.addWidget(self.tree, 1)
         queue_buttons = QHBoxLayout()
@@ -116,7 +116,7 @@ class SchedulerDialog(QDialog):
         for label, value in self.DEFAULT_QUEUES:
             item = QTreeWidgetItem([label])
             item.setData(0, Qt.UserRole, ('queue', value))
-            item.setIcon(0, self.style().standardIcon(QStyle.SP_DirClosedIcon))
+            item.setIcon(0, self.style().standardIcon(QStyle.StandardPixmap.SP_DirClosedIcon))
             self.tree.addTopLevelItem(item)
             seen.add(value)
         for value in custom:
@@ -124,7 +124,7 @@ class SchedulerDialog(QDialog):
             if value and value not in seen:
                 item = QTreeWidgetItem([value + ' queue'])
                 item.setData(0, Qt.UserRole, ('queue', value))
-                item.setIcon(0, self.style().standardIcon(QStyle.SP_DirClosedIcon))
+                item.setIcon(0, self.style().standardIcon(QStyle.StandardPixmap.SP_DirClosedIcon))
                 self.tree.addTopLevelItem(item)
                 seen.add(value)
 
@@ -279,9 +279,9 @@ class SchedulerDialog(QDialog):
         self.move_down = QPushButton()
         self.move_up = QPushButton()
         self.remove_file = QPushButton()
-        self.move_down.setIcon(self.style().standardIcon(QStyle.SP_ArrowDown))
-        self.move_up.setIcon(self.style().standardIcon(QStyle.SP_ArrowUp))
-        self.remove_file.setIcon(self.style().standardIcon(QStyle.SP_TrashIcon))
+        self.move_down.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown))
+        self.move_up.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp))
+        self.remove_file.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
         for b in (self.move_down, self.move_up, self.remove_file):
             b.setFixedSize(24, 23)
             controls.addWidget(b)
@@ -450,7 +450,7 @@ class SchedulerDialog(QDialog):
         self.q.setValue('scheduler/custom_queues', queues)
         item = QTreeWidgetItem([name + ' queue'])
         item.setData(0, Qt.UserRole, ('queue', name))
-        item.setIcon(0, self.style().standardIcon(QStyle.SP_DirClosedIcon))
+        item.setIcon(0, self.style().standardIcon(QStyle.StandardPixmap.SP_DirClosedIcon))
         self.tree.insertTopLevelItem(self.tree.topLevelItemCount() - 1, item)
         self.tree.setCurrentItem(item)
 
