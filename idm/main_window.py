@@ -1741,7 +1741,40 @@ class MainWindow(QMainWindow):
             self.tasks.pop(rid,None); self.pauses.pop(rid,None); self.stops.pop(rid,None)
         dlg=self.progress_dialogs.get(rid)
         if dlg: dlg.sync()
+    def _run_scheduled_queues(self):
+        q=QSettings('OriginalDownloadManager','InternetDownloadManager')
+        now=QDateTime.currentDateTime()
+        today=now.date().toString('yyyy-MM-dd')
+        minute=now.time().toString('HH:mm')
+        weekday={1:'monday',2:'tuesday',3:'wednesday',4:'thursday',5:'friday',6:'saturday',7:'sunday'}[now.date().dayOfWeek()]
+        queues=['Main','High Priority','Later','Synchronization']
+        queues += [str(name) for name in q.value('scheduler/custom_queues',[],type=list)]
+        if not hasattr(self,'_scheduler_startup_run'): self._scheduler_startup_run=set()
+        for name in dict.fromkeys(queues):
+            prefix='scheduler/queues/'+name+'/'
+            if q.value(prefix+'startup',False,type=bool) and name not in self._scheduler_startup_run:
+                self._scheduler_startup_run.add(name)
+                self.start_queue_named(name)
+            if q.value(prefix+'start_enabled',False,type=bool):
+                if q.value(prefix+'once',True,type=bool):
+                    target_date=q.value(prefix+'start_date',now.date(),type=type(now.date()))
+                    target_time=q.value(prefix+'start_time',None,type=type(now.time()))
+                    due=(target_date==now.date() and target_time is not None and target_time<=now.time())
+                else:
+                    target_time=q.value(prefix+'start_time',None,type=type(now.time()))
+                    due=(target_time is not None and target_time.toString('HH:mm')==minute and
+                         q.value(prefix+'day_'+weekday,True,type=bool))
+                if due and q.value(prefix+'last_start','',type=str)!=today:
+                    q.setValue(prefix+'last_start',today)
+                    self.start_queue_named(name)
+            if q.value(prefix+'stop_enabled',False,type=bool):
+                stop_time=q.value(prefix+'stop_time',None,type=type(now.time()))
+                if stop_time is not None and stop_time.toString('HH:mm')==minute and q.value(prefix+'last_stop','',type=str)!=today:
+                    q.setValue(prefix+'last_stop',today)
+                    self.stop_queue_named(name)
+
     def queue_tick(self):
+        self._run_scheduled_queues()
         if len(self.tasks)>=self.max_downloads:return
         for r in self.storage.all():
             if len(self.tasks)>=self.max_downloads:break
