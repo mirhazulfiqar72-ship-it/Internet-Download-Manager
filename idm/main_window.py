@@ -180,6 +180,7 @@ class AddDialog(QDialog):
         self.url.textChanged.connect(self.guess_name); self.guess_name(initial_url)
         self._remote_probe_timer=QTimer(self); self._remote_probe_timer.setSingleShot(True); self._remote_probe_timer.setInterval(250); self._remote_probe_timer.timeout.connect(self._probe_remote_size)
         self.url.textChanged.connect(lambda *_: self._remote_probe_timer.start())
+        self._remote_probe_timer.start()
         self.save_as.textChanged.connect(self._update_file_type_icon)
         self.save_as.textChanged.connect(lambda text:self.path_display.setText(str(Path(text).parent)))
         self.save_as.textEdited.connect(lambda *_: setattr(self,'_user_save_as_edited',True))
@@ -197,10 +198,17 @@ class AddDialog(QDialog):
         }
         return next((category for category,extensions in groups.items() if ext in extensions),None)
 
-    def _set_category_folder(self, category):
+    @staticmethod
+    def _category_folder_path(category):
         from .options_config import category_settings
+        required={'Programs':'Program','Documents':'docoments','Archives':'Compressed'}
+        if category in required:
+            return Path(DEFAULT_DIR).expanduser()/required[category]
         configured=category_settings(category).get('folder','')
-        folder=Path(configured or DEFAULT_DIR).expanduser()
+        return Path(configured or DEFAULT_DIR).expanduser()
+
+    def _set_category_folder(self, category):
+        folder=self._category_folder_path(category)
         try: folder.mkdir(parents=True,exist_ok=True)
         except OSError: pass  # Start/Download Later reports an unwritable folder.
         name=self.filename.text().strip() or Path(self.save_as.text()).name
@@ -586,6 +594,10 @@ class DownloadProgressDialog(QDialog):
     def eventFilter(self,obj,event):
         if obj is self.titlebar:
             if event.type()==QEvent.MouseButtonPress and event.button()==Qt.LeftButton:
+                handle=self.windowHandle()
+                if handle is not None and handle.startSystemMove():
+                    self._drag_offset=None
+                    return True
                 self._drag_offset=event.globalPosition().toPoint()-self.frameGeometry().topLeft()
                 return True
             if event.type()==QEvent.MouseMove and self._drag_offset is not None and (event.buttons() & Qt.LeftButton):
@@ -659,11 +671,11 @@ class DownloadProgressDialog(QDialog):
         speed=float(speed or 0)
         if status=='Downloading' and previous is not None:speed=previous*0.75+speed*0.25
         self._display_speed=speed
-        r0=self.owner.storage.get(self.rid); percent=int(100*downloaded/total) if total else 0
-        if r0:
-            title=f"{percent}% {r0['filename']}"; self.setWindowTitle(title); self.title_label.setText(title); self.title_label.setToolTip(str(r0['filename']))
+        r=self.owner.storage.get(self.rid); percent=int(100*downloaded/total) if total else 0
+        if r:
+            title=f"{percent}% {r['filename']}"; self.setWindowTitle(title); self.title_label.setText(title); self.title_label.setToolTip(str(r['filename']))
         shown='Receiving data...' if status=='Downloading' else status; self.state.setText(shown); self.size_lbl.setText(self.owner.size(total)); self.done_lbl.setText(f'{self.owner.size(downloaded)} ({(downloaded*100/total):.2f}%)' if total else self.owner.size(downloaded)); self.speed_lbl.setText(self.owner.speed_text(speed)); self.live_speed.setText(self.owner.speed_text(speed)); self.eta_lbl.setText(self.owner.eta_text(eta)); pct=int(1000*downloaded/total) if total else 0; self.bar.setValue(pct); self.connection_bar.setValue(1000)
-        r=self.owner.storage.get(self.rid); n=max(1,int(r['connections'] or self.owner.connections)) if r else 1
+        n=max(1,int(r['connections'] or self.owner.connections)) if r else 1
         if self.connections.rowCount()!=n:
             self.connections.setRowCount(n)
             for i in range(n): self.connections.setItem(i,0,QTableWidgetItem(str(i+1))); self.connections.setItem(i,1,QTableWidgetItem('--')); self.connections.setItem(i,2,QTableWidgetItem('Receiving data...'))
@@ -1111,7 +1123,7 @@ class MainWindow(QMainWindow):
             item=self.table.item(i,0)
             if item and item.data(Qt.UserRole)==rid:return i
         return -1
-    def update_row(self,rid,downloaded=None,total=None,speed=None,eta=None,status=None):
+    def update_row(self,rid,downloaded=None,total=None,speed=None,eta=None,status=None,refresh_visibility=True):
         i=self.row_by_id(rid); rr=self.storage.get(rid)
         if i<0 or not rr:return
         # total/status are sometimes supplied before the async storage refresh has
@@ -1128,7 +1140,7 @@ class MainWindow(QMainWindow):
             if item and item.text()!=v:item.setText(v)
         if self.table.item(i,3): self.table.item(i,3).setToolTip(str(rr['error'] or ''))
         self.table.setSortingEnabled(sorting)
-        self.refresh_visibility()
+        if refresh_visibility:self.refresh_visibility()
     def selected_ids(self): return [self.table.item(i,0).data(Qt.UserRole) for i in sorted({x.row() for x in self.table.selectedIndexes()})]
     def _duplicate_target(self,url,path,selector=''):
         # Duplicate prompts are based only on entries that are actually still
@@ -1309,6 +1321,7 @@ class MainWindow(QMainWindow):
             d.setWindowIcon(self.windowIcon())
             d.filename.setText(name)
             d.category.setCurrentText(category)
+            d._set_category_folder(category)
             d.description.setText('Browser extension download request')
             if self._show_browser_dialog(d)!=QDialog.Accepted:
                 return
@@ -1317,7 +1330,7 @@ class MainWindow(QMainWindow):
             category=d.category.currentText()
             start_now=(d.action!='later')
         else:
-            folder=Path(DEFAULT_DIR).expanduser(); start_now=True
+            folder=AddDialog._category_folder_path(category); start_now=True
         try:
             folder.mkdir(parents=True,exist_ok=True)
         except Exception as e:
@@ -1545,7 +1558,7 @@ class MainWindow(QMainWindow):
         speed=float(s or 0)
         self.live_telemetry[rid]=(speed,eta)
         self.storage.update(rid,status='Downloading',downloaded=downloaded,total=total)
-        self.update_row(rid,downloaded=downloaded,total=total,speed=speed,eta=eta,status='Downloading')
+        self.update_row(rid,downloaded=downloaded,total=total,speed=speed,eta=eta,status='Downloading',refresh_visibility=False)
         dlg=self.progress_dialogs.get(rid)
         if dlg: dlg.update_live(downloaded,total,speed,eta,'Downloading')
         self.statusBar().showMessage(f'Media {pct:.1f}%  •  {self.speed_text(speed)}')
@@ -1693,7 +1706,7 @@ class MainWindow(QMainWindow):
             dlg.destroyed.connect(lambda _=None,r=rid:self.progress_dialogs.pop(r,None))
         dlg.show(); dlg.raise_(); dlg.activateWindow()
     def download_progress(self,rid,d,t,s,e):
-        self.update_row(rid,d,t,s,e,'Downloading')
+        self.update_row(rid,d,t,s,e,'Downloading',refresh_visibility=False)
         dlg=self.progress_dialogs.get(rid)
         if dlg: dlg.update_live(d,t,s,e,'Downloading')
     def task_status(self,rid,st,msg):
