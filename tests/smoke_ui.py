@@ -12,7 +12,11 @@ try:
     path=Path(os.environ['LOCALAPPDATA'])/'example.txt'
     path.write_text('test')
     rid=w.storage.add('https://example.com/file',path.name,str(path),'Completed',total=100,downloaded=100,queue_name='')
-    w.load_rows();w.table.selectRow(w.row_by_id(rid))
+    w.load_rows()
+    assert w.table.columnCount()==9
+    assert 'Save To' not in [w.table.horizontalHeaderItem(i).text() for i in range(w.table.columnCount())]
+    assert w.table.item(w.row_by_id(rid),3).text()=='Complete'
+    w.table.selectRow(w.row_by_id(rid))
     class CaptureMenu(QMenu):
         def exec(self,*args):
             actions={a.text():a for a in self.actions() if not a.isSeparator()}
@@ -24,6 +28,8 @@ try:
     module.QMenu=CaptureMenu
     w.context_menu(QPoint(-1,-1))
     w.storage.update(rid,status='Downloading',downloaded=50,total=100)
+    w.update_row(rid,downloaded=50,total=100,status='Downloading')
+    assert w.table.item(w.row_by_id(rid),3).text()=='50%'
     dlg=module.DownloadProgressDialog(w,rid)
     assert dlg.width()==512 and dlg.height()==448
     dlg.update_live(50,100,1000,1)
