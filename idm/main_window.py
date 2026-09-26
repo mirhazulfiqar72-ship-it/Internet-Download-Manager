@@ -265,22 +265,56 @@ class AddDialog(QDialog):
 
     @staticmethod
     def _file_type_preview_icon(path):
-        ext=Path(path).suffix.lower().lstrip('.').upper()[:5] or 'FILE'
-        colors={
-            'PDF':'#d64040','DOC':'#2874b8','DOCX':'#2874b8','XLS':'#23834a','XLSX':'#23834a',
-            'PPT':'#c76532','PPTX':'#c76532','TXT':'#64748b','CSV':'#23834a','RTF':'#64748b'
-        }
-        color=QColor(colors.get(ext,'#536b83'))
+        """Draw a recognizable icon for the downloaded file's extension."""
+        ext=Path(path).suffix.lower().lstrip('.')[:5].upper() or 'FILE'
+        video={'3GP','AVI','FLV','M4V','MKV','MOV','MP4','MPEG','MPG','OGV','TS','WEBM','WMV'}
+        archive={'7Z','BZ2','CAB','GZ','ISO','RAR','TAR','TGZ','XZ','ZIP','ZST'}
+        document={'CSV','DOC','DOCM','DOCX','EPUB','ODP','ODS','ODT','PDF','PPT','PPTX','RTF','TXT','XLS','XLSX'}
+        program={'APK','APPX','BAT','CMD','COM','DEB','DLL','DMG','EXE','JAR','MSI','MSIX','PKG','RPM','SCR','SH'}
+        image={'AVIF','BMP','GIF','HEIC','HEIF','ICO','JPEG','JPG','PNG','RAW','SVG','TIF','TIFF','WEBP'}
+        audio={'AAC','AIFF','ALAC','FLAC','M4A','MID','MIDI','MP3','OGG','OPUS','WAV','WMA'}
+        if ext in video: kind,color='video','#d64040'
+        elif ext in archive: kind,color='archive','#8c43d1'
+        elif ext in document: kind,color='document','#2874b8'
+        elif ext in program: kind,color='program','#23834a'
+        elif ext in image: kind,color='image','#d88924'
+        elif ext in audio: kind,color='audio','#8250b5'
+        else: kind,color='file','#64748b'
         pm=QPixmap(48,48); pm.fill(Qt.transparent)
-        painter=QPainter(pm); painter.setRenderHint(QPainter.Antialiasing,True)
-        painter.setPen(QPen(QColor('#9aa7b5'),1)); painter.setBrush(QBrush(QColor('#f7f9fc')))
-        painter.drawRoundedRect(7,3,34,42,3,3)
-        painter.setPen(Qt.NoPen); painter.setBrush(QBrush(QColor('#dfe6ee')))
-        painter.drawPolygon(QPolygonF([QPointF(29,4),QPointF(39,14),QPointF(29,14)]))
-        painter.setBrush(QBrush(color)); painter.drawRoundedRect(5,28,38,14,3,3)
-        painter.setPen(QPen(Qt.white)); painter.setFont(QFont('Segoe UI',8,QFont.Bold))
-        painter.drawText(QRectF(5,28,38,14),Qt.AlignCenter,ext)
-        painter.end()
+        p=QPainter(pm); p.setRenderHint(QPainter.Antialiasing,True)
+        p.setPen(QPen(QColor('#596675'),1))
+        if kind=='video':
+            p.setBrush(QBrush(QColor(color))); p.drawRoundedRect(6,6,36,28,4,4)
+            p.setPen(Qt.NoPen); p.setBrush(QBrush(Qt.white))
+            p.drawPolygon(QPolygonF([QPointF(19,12),QPointF(19,28),QPointF(32,20)]))
+        elif kind=='archive':
+            p.setBrush(QBrush(QColor(color))); p.drawRoundedRect(9,5,30,32,3,3)
+            p.setPen(QPen(QColor('#f5ce58'),3)); p.drawLine(24,7,24,34)
+            p.setPen(QPen(Qt.white,1)); [p.drawLine(20,y,28,y) for y in (11,17,23,29)]
+        elif kind=='document':
+            p.setBrush(QBrush(QColor('#f7f9fc'))); p.drawRoundedRect(8,4,32,36,3,3)
+            p.setPen(QPen(QColor(color),2)); [p.drawLine(14,y,34,y) for y in (13,20,27)]
+        elif kind=='program':
+            p.setBrush(QBrush(QColor('#eef6ff'))); p.drawRoundedRect(5,7,38,26,3,3)
+            p.setBrush(QBrush(QColor(color))); p.drawRect(6,8,36,6)
+            p.setPen(QPen(QColor(color),2)); p.drawLine(18,34,30,34); p.drawLine(24,33,24,38)
+            p.setPen(Qt.NoPen); p.setBrush(QBrush(QColor('#68a8df')))
+            [p.drawRect(x,y,7,6) for x,y in ((12,17),(22,17),(12,25),(22,25))]
+        elif kind=='image':
+            p.setBrush(QBrush(QColor('#f8fbff'))); p.drawRoundedRect(5,6,38,30,3,3)
+            p.setPen(QPen(QColor(color),2)); p.setBrush(QBrush(QColor('#f4c04e'))); p.drawEllipse(30,10,6,6)
+            p.setPen(QPen(QColor('#388b55'),1)); p.setBrush(QBrush(QColor('#56b76d')))
+            p.drawPolygon(QPolygonF([QPointF(8,32),QPointF(18,20),QPointF(25,28),QPointF(32,18),QPointF(41,32)]))
+        elif kind=='audio':
+            p.setPen(QPen(QColor(color),5)); p.drawLine(27,8,27,29); p.drawLine(27,8,39,5); p.drawLine(39,5,39,25)
+            p.setPen(Qt.NoPen); p.setBrush(QBrush(QColor(color))); p.drawEllipse(18,25,11,8); p.drawEllipse(30,21,11,8)
+        else:
+            p.setBrush(QBrush(QColor('#f7f9fc'))); p.drawRoundedRect(8,4,32,36,3,3)
+            p.setPen(QPen(QColor(color),2)); [p.drawLine(14,y,34,y) for y in (15,22,29)]
+        p.setPen(Qt.NoPen); p.setBrush(QBrush(QColor(color))); p.drawRoundedRect(5,37,38,10,2,2)
+        p.setPen(QPen(Qt.white)); p.setFont(QFont('Segoe UI',7,QFont.Bold))
+        p.drawText(QRectF(5,37,38,10),Qt.AlignCenter,ext)
+        p.end()
         return QIcon(pm)
 
     def _update_file_type_icon(self):
@@ -1099,7 +1133,7 @@ class MainWindow(QMainWindow):
                 it.setData(Qt.UserRole, float(r['created'] or 0))
             if c==0:
                 it.setData(Qt.UserRole,r['id'])
-                it.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
+                it.setIcon(AddDialog._file_type_preview_icon(str(r['filename'] or vals[0])))
             self.table.setItem(i,c,it)
         self.table.setSortingEnabled(sorting)
     def _queue_mark(self,r):
