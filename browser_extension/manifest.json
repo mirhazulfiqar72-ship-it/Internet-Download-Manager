@@ -1,32 +1,48 @@
-#define AppName "Internet Download Manager"
-#define AppVersion "1.5.15"
-#define AppPublisher "Mirha Zulfiqar"
-#define AppExeName "InternetDownloadManager.exe"
-[Setup]
-AppId={{7D18D4B1-7E6D-4D12-9A8D-5E8F1A5D1520}
-AppName={#AppName}
-AppVersion={#AppVersion}
-AppPublisher={#AppPublisher}
-DefaultDirName={autopf}\Internet Download Manager
-DefaultGroupName={#AppName}
-OutputDir=..\installer-output
-OutputBaseFilename=InternetDownloadManager_Setup
-Compression=lzma2
-SolidCompression=yes
-ArchitecturesInstallIn64BitMode=x64
-PrivilegesRequired=admin
-Uninstallable=yes
-DisableProgramGroupPage=yes
-WizardStyle=modern
-[Files]
-Source: "..\dist\InternetDownloadManager\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
-Source: "..\browser_extension\*"; DestDir: "{app}\browser_extension"; Flags: recursesubdirs ignoreversion
-Source: "..\INSTALL_BROWSER_INTEGRATION.bat"; DestDir: "{app}"; Flags: ignoreversion
-[Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"
-[Run]
-Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
-Filename: "{sys}\cmd.exe"; Parameters: "/c ""{app}\INSTALL_BROWSER_INTEGRATION.bat"""; Description: "Register browser integration"; Flags: runhidden waituntilterminated skipifsilent
-[UninstallDelete]
-Type: filesandordirs; Name: "{app}\browser_extension"
+{
+  "manifest_version": 3,
+  "name": "Internet Download Manager Integration",
+  "version": "1.5.15",
+  "description": "Browser download integration with foreground File Info dialogs, live speed/ETA progress, tray-safe background downloads, and completion flow.",
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "nativeMessaging",
+    "downloads",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Download with Internet Download Manager",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0JrqD7yS0nX7yMyQf7YqA7MqZKJbjs1m/9TBOgD1MRNcO5dDlNaD7e7BOQTmyZuSM4cADTaZi4GZnoJ17la6YHWR+9+sa5JRuhX7HppD5zKvVDWDhRMR22508c/CqqnN8uoBJgPv2UYWiHIGAgKl3lNDLdGO3t20YR7Wr+TYEY8BpL3pFTfeQVaj8H3wwPUVx1rUI0l8dj1L+SxJp1w2TVNtHi2thS9JUF+bstgy+3CDCpvtNOGZjKUa3d4yIvw0fcPvXVtiJbF4WkaJiej64pqGWTVvJf6e52lPyRDT6pelH3X+z7+rqrIrcf+vQ0K2ixg43MGBNIO7zz5uUGcc4QIDAQAB",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
