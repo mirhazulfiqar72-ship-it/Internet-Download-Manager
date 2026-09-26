@@ -43,6 +43,7 @@ try:
     # Download File Info must expose native close/minimize/maximize controls,
     # while fixed size keeps maximize non-functional and minimize available.
     info=module.AddDialog(w,'https://example.com/new-file.bin')
+    assert info._remote_probe_timer.isActive()
     info._remote_probe_timer.stop()
     flags=info.windowFlags()
     assert flags & Qt.WindowMinimizeButtonHint
@@ -68,6 +69,11 @@ try:
     assert program_info.file_size.text()!='--'
     assert Path(program_info.save_as.text()).parent.name.lower()=='program'
     program_info.close()
+    archive_info=module.AddDialog(w,'https://example.com/archive.zip')
+    archive_info._remote_probe_timer.stop()
+    assert archive_info.category.currentText()=='Archives'
+    assert Path(archive_info.save_as.text()).parent.name.lower()=='compressed'
+    archive_info.close()
     picture_info=module.AddDialog(w,'https://example.com/download?id=42')
     picture_info._remote_probe_timer.stop()
     assert picture_info.category.currentText()=='Pictures'
