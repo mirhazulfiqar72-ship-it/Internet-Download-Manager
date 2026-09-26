@@ -41,11 +41,11 @@ class DownloadSignals(QObject):
 
 
 class DownloadTask(QRunnable):
-    """Resumable downloader with automatic multi-connection HTTP Range support.
+    """Resumable downloader that streams directly into the destination file.
 
-    The main task remains one queue item while up to `connections` worker threads
-    download byte ranges into durable .idm-part-N files. If Range is unsupported,
-    it transparently falls back to the original single-stream downloader.
+    Direct streaming avoids leaving per-range part files in the user's download
+    folders. Existing range-part leftovers from older versions are cleaned up
+    before the direct stream starts.
     """
     def __init__(self, row, storage, stop_event, pause_event, speed_limit_kbps=0, connections=4, max_retries=3):
         super().__init__()
@@ -73,14 +73,14 @@ class DownloadTask(QRunnable):
             if self.stop_event.is_set(): self.signals.stopped.emit(); return
             try:
                 self._check_disk(path.parent)
-                if not self._range_disabled and self.connections>1 and self._supports_segmented(url):
-                    try:
-                        self._segmented(rid,url,path)
-                    except RangeUnsupported:
-                        self._range_disabled=True
-                        self._single(rid,url,path)
-                        shutil_rmtree(self._part_dir(path))
-                else: self._single(rid,url,path)
+                # Do not split downloads into visible part-XX.bin files.
+                # Stream directly to the target path and remove leftovers made by
+                # older segmented-download versions before resuming this transfer.
+                shutil_rmtree(self._part_dir(path))
+                assembling=Path(str(path)+'.idm-assembling')
+                try: assembling.unlink()
+                except FileNotFoundError: pass
+                self._single(rid,url,path)
                 return
             except Exception as exc:
                 if self.stop_event.is_set(): self.signals.stopped.emit(); return
