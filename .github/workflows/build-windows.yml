@@ -75,6 +75,6 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $installer --clobber
           } else {
-            gh release create $tag $installer --target "$env:GITHUB_SHA" --title "Internet Download Manager $version" --notes "Use the downloaded program's Windows icon in the file list." --latest
+            gh release create $tag $installer --target "$env:GITHUB_SHA" --title "Internet Download Manager $version" --notes "Dark mode is enabled across all application dialogs; other app behavior and layout remain unchanged." --latest
           }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -137,8 +137,10 @@ if '--verify-media-runtime' in sys.argv:
 if _is_native_host_invocation(sys.argv):
     raise SystemExit(native_host_main())
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
+from idm.theme import apply_dark_dialog_theme
 from idm.main_window import MainWindow
 from idm.wizard import FirstRunWizard
 
@@ -182,7 +184,9 @@ def protocol_request(argv):
     return '', 'add', '', 'video', ''
 
 
+QApplication.setAttribute(Qt.AA_DontUseNativeDialogs, True)
 app = QApplication(sys.argv)
+apply_dark_dialog_theme(app)
 app.setApplicationName('Internet Download Manager')
 _icon_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'assets','app_icon.png')
 if os.path.exists(_icon_path): app.setWindowIcon(QIcon(_icon_path))

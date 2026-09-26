@@ -58,6 +58,6 @@ class DuplicateDownloadDialog(QDialog):
         buttons.setSpacing(18);buttons.addStretch();root.addLayout(buttons)
         ok.setDefault(True);ok.clicked.connect(self.accept);cancel.clicked.connect(self.reject)
         self.remember=QCheckBox("Remember my selection and don't show this dialog again.");self.remember.setFixedHeight(22);root.addWidget(self.remember)
-        note=QLabel('You may change this in Download Settings later.');note.setStyleSheet('color:#6b7280;font-size:11px');root.addWidget(note)
+        note=QLabel('You may change this in Download Settings later.');note.setStyleSheet('color:#a7a7a7;font-size:11px');root.addWidget(note)
     def choice(self):
         return next(k for k,v in self.choices.items() if v.isChecked())

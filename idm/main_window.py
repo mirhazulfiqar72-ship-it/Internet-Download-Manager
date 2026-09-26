@@ -17,6 +17,7 @@ from .settings import AppSettings
 from .release import VERSION, UPDATE_MANIFEST_URL
 from .options_dialog import SettingsDialog
 from .scheduler_dialog import SchedulerDialog
+from .theme import DARK_DIALOG_STYLESHEET
 import requests
 import hashlib, socket
 
@@ -157,19 +158,19 @@ class AddDialog(QDialog):
             b.setObjectName('fileInfoAction')
         self.start_button=start; self.later_button=later
         start.setObjectName('fileInfoPrimary')
-        self.setStyleSheet(self.styleSheet() + '''
+        self.setStyleSheet(DARK_DIALOG_STYLESHEET + self.styleSheet() + '''
             QDialog#classicDownloadDialog QPushButton#fileInfoAction {
-                border:1px solid #c7ccd3; border-radius:5px; background:#ffffff;
+                border:1px solid #555555; border-radius:5px; background:#333337;
                 padding:3px 10px; font-weight:500;
             }
             QDialog#classicDownloadDialog QPushButton#fileInfoAction:hover {
-                background:#f3f6f9; border-color:#9aa4b2;
+                background:#3a3a40; border-color:#666666;
             }
             QDialog#classicDownloadDialog QPushButton#fileInfoPrimary {
-                border:1px solid #0878c9; border-radius:5px; background:#ffffff;
-                color:#1f2937; padding:3px 5px; font-weight:500;
+                border:1px solid #0878c9; border-radius:5px; background:#333337;
+                color:#e6e6e6; padding:3px 5px; font-weight:500;
             }
-            QDialog#classicDownloadDialog QPushButton#fileInfoPrimary:hover { background:#eef6ff; }
+            QDialog#classicDownloadDialog QPushButton#fileInfoPrimary:hover { background:#252526; }
         ''')
         later.clicked.connect(self.later); start.clicked.connect(self.start_now); cancel.clicked.connect(self.reject)
         buttons.addWidget(later); buttons.addWidget(start); buttons.addWidget(cancel); buttons.addStretch(1); root.addLayout(buttons)
@@ -578,14 +579,14 @@ class DownloadProgressDialog(QDialog):
         root.addWidget(self.titlebar)
         body=QWidget(); bodylay=QVBoxLayout(body); bodylay.setContentsMargins(16,6,16,6); root.addWidget(body,1)
         root=bodylay
-        self.setStyleSheet("""#downloadTitleBar{background:#0878c9;} #downloadTitleText{color:white;font-weight:600;} QToolButton#titleButton{border:0;background:transparent;color:white;font-size:15px;} QToolButton#titleButton:hover{background:rgba(255,255,255,45);}
-            QTabWidget::pane{border:1px solid #a7a7a7;background:white;}
+        self.setStyleSheet(DARK_DIALOG_STYLESHEET + """#downloadTitleBar{background:#0878c9;} #downloadTitleText{color:white;font-weight:600;} QToolButton#titleButton{border:0;background:transparent;color:white;font-size:15px;} QToolButton#titleButton:hover{background:rgba(255,255,255,45);}
+            QTabWidget::pane{border:1px solid #4b4b4b;background:#252526;}
             QTabBar::tab{padding:3px 7px;}
-            QProgressBar#downloadProgressBar{height:16px;border:1px solid #929292;background:#f2f2f2;text-align:center;}
+            QProgressBar#downloadProgressBar{height:16px;border:1px solid #555;background:#2d2d30;text-align:center;}
             QProgressBar#downloadProgressBar::chunk{background:#18b52a;}
-            QProgressBar#connectionProgressBar{height:15px;border:1px solid #929292;background:#f2f2f2;}
+            QProgressBar#connectionProgressBar{height:15px;border:1px solid #555;background:#2d2d30;}
             QProgressBar#connectionProgressBar::chunk{background:#1981d1;width:40px;margin-right:38px;border-right:1px solid #df3333;}
-            QTableWidget{gridline-color:#d4d4d4;alternate-background-color:#ededed;}
+            QTableWidget{gridline-color:#414141;alternate-background-color:#2d2d30;}
         """)
         self.tabs=QTabWidget(); root.addWidget(self.tabs)
         status=QWidget(); form=QFormLayout(status); form.setContentsMargins(10,3,10,3); form.setVerticalSpacing(0); form.setHorizontalSpacing(8)
@@ -1102,9 +1103,9 @@ class MainWindow(QMainWindow):
         QPushButton{background:linear-gradient(#ffffff,#f0f3f6);border:1px solid #9aa6b2;border-radius:4px;padding:3px 10px;min-height:20px;color:#1f2937;font-weight:500;} QPushButton:default{border:1px solid #287fc2;background:linear-gradient(#fafdff,#dbeeff);padding:3px 10px;} QPushButton:pressed{background:#dbe7f2;border-color:#6e8295;} QPushButton:hover{background:#eef7ff;border-color:#4288bd;}
         QDialog QPushButton{min-height:23px;padding:3px 12px;border-radius:4px;} QDialogButtonBox QPushButton{min-width:76px;} QDialog QLabel{color:#1f2937;} QDialog QLineEdit,QDialog QComboBox,QDialog QSpinBox,QDialog QDateTimeEdit{min-height:21px;padding:2px 5px;border:1px solid #9aa6b2;border-radius:3px;}
         QLineEdit,QComboBox,QSpinBox,QDateTimeEdit{background:white;border:1px solid #9f9f9f;padding:3px;}
-        QDialog#classicAddressDialog,QDialog#classicDownloadDialog,QDialog#classicDownloadComplete{background:#f3f3f3;} QDialog#classicAddressDialog QLabel,QDialog#classicDownloadDialog QLabel{background:transparent;} QDialog#classicAddressDialog QLineEdit,QDialog#classicDownloadDialog QLineEdit,QDialog#classicDownloadDialog QComboBox{background:#fff;border:1px solid #8f9dad;padding:3px 5px;min-height:18px;} QDialog#classicAddressDialog QPushButton,QDialog#classicDownloadDialog QPushButton,QDialog#classicDownloadComplete QPushButton{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #ffffff,stop:0.48 #f7f7f7,stop:0.52 #e9e9e9,stop:1 #dddddd);border:1px solid #8b8b8b;border-radius:1px;padding:3px 10px;} QDialog#classicAddressDialog QPushButton:hover,QDialog#classicDownloadDialog QPushButton:hover,QDialog#classicDownloadComplete QPushButton:hover{border:1px solid #3c7fb1;background:#eaf5ff;} QDialog#classicAddressDialog QPushButton:default,QDialog#classicDownloadDialog QPushButton:default,QDialog#classicDownloadComplete QPushButton:default{border:2px solid #3399ff;padding:2px 9px;}
+        QDialog#classicAddressDialog,QDialog#classicDownloadDialog,QDialog#classicDownloadComplete{background:#1e1e1e;color:#e6e6e6;} QDialog#classicAddressDialog QLabel,QDialog#classicDownloadDialog QLabel{background:transparent;color:#e6e6e6;} QDialog#classicAddressDialog QLineEdit,QDialog#classicDownloadDialog QLineEdit,QDialog#classicDownloadDialog QComboBox{background:#252526;color:#f1f1f1;border:1px solid #555;padding:3px 5px;min-height:18px;} QDialog#classicAddressDialog QPushButton,QDialog#classicDownloadDialog QPushButton,QDialog#classicDownloadComplete QPushButton{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #3a3a40,stop:0.48 #333337,stop:0.52 #2a2a2d,stop:1 #252526);color:#e6e6e6;border:1px solid #555;border-radius:3px;padding:3px 10px;} QDialog#classicAddressDialog QPushButton:hover,QDialog#classicDownloadDialog QPushButton:hover,QDialog#classicDownloadComplete QPushButton:hover{border:1px solid #1688d4;background:#3a3a40;} QDialog#classicAddressDialog QPushButton:default,QDialog#classicDownloadDialog QPushButton:default,QDialog#classicDownloadComplete QPushButton:default{border:2px solid #1688d4;padding:2px 9px;}
         QTabWidget::pane,QGroupBox{border:1px solid #a6a6a6;background:#f7f7f7;}
-        """)
+        """ + DARK_DIALOG_STYLESHEET)
 
     def notify(self,title,message):
         if self.notifications and self.tray.isVisible(): self.tray.showMessage(title,message,QSystemTrayIcon.Information,5000)

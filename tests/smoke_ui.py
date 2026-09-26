@@ -6,7 +6,12 @@ from PySide6.QtWidgets import QApplication, QMenu, QDialog
 from PySide6.QtCore import QPoint, Qt
 import idm.main_window as module
 from idm.update import newer
+QApplication.setAttribute(Qt.AA_DontUseNativeDialogs, True)
 app=QApplication([])
+from idm.theme import apply_dark_dialog_theme
+apply_dark_dialog_theme(app)
+assert 'background-color:#1e1e1e' in app.styleSheet()
+assert 'QDialog' in app.styleSheet()
 w=module.MainWindow()
 try:
     path=Path(os.environ['LOCALAPPDATA'])/'example.txt'
@@ -111,6 +116,7 @@ try:
     assert not calls
     w._show_browser_dialog=original_show
 
+    assert newer('1.5.24','1.5.23')
     assert newer('1.5.3','1.5.2')
     assert not newer('1.5.3','1.5.3')
     assert not newer('1.5.2','1.5.3')

@@ -5,20 +5,22 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QGridLayout,QFormLayout,QWidget,QStackedWidget,QPushButton,QLabel,QCheckBox,QLineEdit,QComboBox,QSpinBox,QPlainTextEdit,QTableWidget,QTableWidgetItem,QHeaderView,QDialogButtonBox,QFileDialog,QMessageBox,QInputDialog,QAbstractItemView,QFrame,QScrollArea)
+from .theme import DARK_DIALOG_STYLESHEET
 from .options_config import load_options,save_options,DEFAULTS,CATEGORIES,category_settings,protect,unprotect,apply_startup,sound_event,dial_connect
 
-STYLE='''QDialog{background:#f2f2f2;} QWidget{font-family:"Segoe UI";font-size:8.5pt;color:#111;}
-QPushButton{min-height:22px;min-width:60px;padding:1px 8px;border:1px solid #9a9a9a;border-radius:2px;background:#f2f2f2;}
-QPushButton:hover{border-color:#5f8fb8;background:#eef6ff;} QPushButton:pressed{background:#dce9f5;}
-QPushButton:disabled{color:#8d8d8d;background:#ededed;} QPushButton:default{border:1px solid #2678b8;}
-QPushButton[pageButton="true"]{min-width:0;min-height:18px;padding:0 4px;border:1px solid #8f8f8f;border-radius:0;background:#e7e7e7;font-weight:400;}
-QPushButton[pageButton="true"]:hover{background:#f1f1f1;} QPushButton[pageButton="true"]:checked{background:white;border-bottom-color:white;font-weight:600;color:#111;}
-QStackedWidget#optionsPages{background:white;border:1px solid #8f8f8f;}
-QLineEdit,QSpinBox,QComboBox,QPlainTextEdit,QTableWidget{background:white;border:1px solid #9a9a9a;selection-background-color:#cfe6ff;selection-color:#111;}
-QLineEdit,QSpinBox,QComboBox{min-height:21px;} QTableWidget{gridline-color:#dedede;} QLabel[heading="true"]{font-size:9pt;font-weight:700;color:#111;}
-QFrame#browserCapture{background:#f7f7f7;border:1px solid #c8c8c8;} QScrollArea#browserList{background:white;border:1px solid #aaa;}
-QScrollArea#browserList QWidget{background:white;} QCheckBox{spacing:5px;} QDialogButtonBox QPushButton{min-width:68px;}
-'''
+STYLE = DARK_DIALOG_STYLESHEET + """
+QPushButton[pageButton="true"]{min-width:0;min-height:18px;padding:0 4px;border:1px solid #555;border-radius:0;background:#2d2d30;font-weight:400;}
+QPushButton[pageButton="true"]:hover{background:#3a3a40;}
+QPushButton[pageButton="true"]:checked{background:#1e1e1e;border-bottom-color:#1e1e1e;font-weight:600;color:#ffffff;}
+QStackedWidget#optionsPages{background:#1e1e1e;border:1px solid #4b4b4b;}
+QTableWidget{gridline-color:#414141;}
+QLabel[heading="true"]{font-size:9pt;font-weight:700;color:#ffffff;}
+QFrame#browserCapture{background:#252526;border:1px solid #4b4b4b;}
+QScrollArea#browserList{background:#252526;border:1px solid #4b4b4b;}
+QScrollArea#browserList QWidget{background:#252526;color:#e6e6e6;}
+QCheckBox{spacing:5px;}
+QDialogButtonBox QPushButton{min-width:68px;}
+"""
 
 def buttons(dialog,layout):
     box=QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel);box.accepted.connect(dialog.accept);box.rejected.connect(dialog.reject);layout.addWidget(box);return box

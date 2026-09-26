@@ -10,6 +10,9 @@ from PySide6.QtWidgets import (
 )
 
 
+from .theme import DARK_DIALOG_STYLESHEET
+
+
 class SchedulerDialog(QDialog):
     """Classic IDM-style queue scheduler dialog."""
     DEFAULT_QUEUES = [('Main download queue', 'Main'),
@@ -512,16 +515,16 @@ class SchedulerDialog(QDialog):
         self.q.sync()
 
     def _style(self):
-        self.setStyleSheet("""
-            QDialog#idmScheduler { background:#f3f3f3; color:#111; font-family:'Segoe UI'; font-size:9pt; }
-            QTreeWidget { background:white; border:1px solid #a6a6a6; }
+        self.setStyleSheet(DARK_DIALOG_STYLESHEET + """
+            QDialog#idmScheduler { background:#1e1e1e; color:#e6e6e6; font-family:'Segoe UI'; font-size:9pt; }
+            QTreeWidget { background:#252526; border:1px solid #4b4b4b; }
             QTreeWidget::item { height:21px; padding:1px 3px; }
-            QTreeWidget::item:selected { background:#d7e8f8; color:#111; }
-            QTabWidget::pane { background:#f7f7f7; border:1px solid #a6a6a6; }
-            QTabBar::tab { background:#efefef; border:1px solid #aaa; padding:4px 8px; }
-            QTabBar::tab:selected { background:#f7f7f7; border-bottom-color:#f7f7f7; }
-            QTableWidget { background:white; border:1px solid #a6a6a6; gridline-color:#ddd; }
-            QHeaderView::section { background:#f2f2f2; border:0; border-right:1px solid #bbb; border-bottom:1px solid #999; padding:3px 5px; font-weight:400; }
+            QTreeWidget::item:selected { background:#094771; color:#ffffff; }
+            QTabWidget::pane { background:#1e1e1e; border:1px solid #4b4b4b; }
+            QTabBar::tab { background:#2d2d30; border:1px solid #4b4b4b; padding:4px 8px; }
+            QTabBar::tab:selected { background:#1e1e1e; border-bottom-color:#1e1e1e; }
+            QTableWidget { background:#252526; border:1px solid #4b4b4b; gridline-color:#414141; alternate-background-color:#2d2d30; }
+            QHeaderView::section { background:#333337; border:0; border-right:1px solid #4b4b4b; border-bottom:1px solid #555; padding:3px 5px; font-weight:400; }
             QPushButton { min-height:21px; padding:2px 8px; }
-            QLineEdit, QSpinBox, QTimeEdit, QDateEdit, QComboBox { background:white; min-height:20px; }
+            QLineEdit, QSpinBox, QTimeEdit, QDateEdit, QComboBox { background:#252526; min-height:20px; }
         """)
