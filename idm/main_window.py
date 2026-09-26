@@ -1558,7 +1558,8 @@ class MainWindow(QMainWindow):
         speed=float(s or 0)
         self.live_telemetry[rid]=(speed,eta)
         self.storage.update(rid,status='Downloading',downloaded=downloaded,total=total)
-        self.update_row(rid,downloaded=downloaded,total=total,speed=speed,eta=eta,status='Downloading',refresh_visibility=False)
+        refresh=self._mark_progress_ui_active(rid)
+        self.update_row(rid,downloaded=downloaded,total=total,speed=speed,eta=eta,status='Downloading',refresh_visibility=refresh)
         dlg=self.progress_dialogs.get(rid)
         if dlg: dlg.update_live(downloaded,total,speed,eta,'Downloading')
         self.statusBar().showMessage(f'Media {pct:.1f}%  •  {self.speed_text(speed)}')
@@ -1705,11 +1706,20 @@ class MainWindow(QMainWindow):
             dlg=DownloadProgressDialog(self,rid); self.progress_dialogs[rid]=dlg
             dlg.destroyed.connect(lambda _=None,r=rid:self.progress_dialogs.pop(r,None))
         dlg.show(); dlg.raise_(); dlg.activateWindow()
+    def _mark_progress_ui_active(self,rid):
+        active=getattr(self,'_progress_ui_active',set())
+        should_refresh=rid not in active
+        active.add(rid)
+        self._progress_ui_active=active
+        return should_refresh
+
     def download_progress(self,rid,d,t,s,e):
-        self.update_row(rid,d,t,s,e,'Downloading',refresh_visibility=False)
+        refresh=self._mark_progress_ui_active(rid)
+        self.update_row(rid,d,t,s,e,'Downloading',refresh_visibility=refresh)
         dlg=self.progress_dialogs.get(rid)
         if dlg: dlg.update_live(d,t,s,e,'Downloading')
     def task_status(self,rid,st,msg):
+        if st!='Downloading': getattr(self,'_progress_ui_active',set()).discard(rid)
         self.update_row(rid,status=st); self.statusBar().showMessage(msg or st)
         if st=='Paused':
             # A paused worker has exited. Remove its task/event handles so Resume
@@ -1793,6 +1803,7 @@ class MainWindow(QMainWindow):
         self.refresh_all_rows();self.start_ids(ids)
     def task_done(self,rid):
         from .options_config import load_options, sound_event, scan_file
+        getattr(self,'_progress_ui_active',set()).discard(rid)
         rr=self.storage.get(rid);self.tasks.pop(rid,None);self.pauses.pop(rid,None);self.stops.pop(rid,None);self.update_row(rid,status='Completed');self.notify('Download completed',rr['filename'] if rr else 'Download');
         if rr:
             try: sound_event('Download complete')
@@ -1820,8 +1831,9 @@ class MainWindow(QMainWindow):
             dlg.setWindowFlag(Qt.WindowStaysOnTopHint,True); dlg.show(); dlg.raise_(); dlg.activateWindow(); dlg.exec()
     def task_failed(self,rid,err):
         from .options_config import sound_event
+        getattr(self,'_progress_ui_active',set()).discard(rid)
         rr=self.storage.get(rid);self.tasks.pop(rid,None);self.pauses.pop(rid,None);self.stops.pop(rid,None);self.storage.update(rid,status='Failed',error=str(err));self.update_row(rid,status='Failed');self.notify('Download failed',rr['filename'] if rr else str(err));self.statusBar().showMessage(str(err)); QMessageBox.critical(self,'Download failed',str(err))
-    def task_stopped(self,rid):self.tasks.pop(rid,None);self.pauses.pop(rid,None);self.stops.pop(rid,None);self.update_row(rid,status='Stopped')
+    def task_stopped(self,rid):getattr(self,'_progress_ui_active',set()).discard(rid);self.tasks.pop(rid,None);self.pauses.pop(rid,None);self.stops.pop(rid,None);self.update_row(rid,status='Stopped')
     def redownload_selected(self):
         ids=self.selected_ids()
         for rid in ids:
