@@ -799,9 +799,9 @@ class MainWindow(QMainWindow):
         self.category_panel=side_frame
 
         main=QVBoxLayout(); main.setContentsMargins(0,0,0,0); main.setSpacing(0)
-        self.table=QTableWidget(0,10)
+        self.table=QTableWidget(0,9)
         # Reference-style one-page order: the most useful live details stay together.
-        self.table.setHorizontalHeaderLabels(['File Name','Q','Size','Status','Time left','Transfer rate','Last Try Date','Description','Date Added','Save To'])
+        self.table.setHorizontalHeaderLabels(['File Name','Q','Size','Status','Time left','Transfer rate','Last Try Date','Description','Date Added'])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -814,21 +814,21 @@ class MainWindow(QMainWindow):
         hh.setStretchLastSection(False)
         # Compact IDM-style single-page grid: every detail stays visible without
         # horizontal scrolling. File Name gets the flexible remaining space.
-        for col in range(10):
+        for col in range(9):
             hh.setSectionResizeMode(col,QHeaderView.Fixed)
         hh.setSectionResizeMode(0,QHeaderView.Stretch)
-        compact_widths={1:28,2:78,3:92,4:150,5:96,6:92,7:92,8:86,9:145}
+        compact_widths={1:28,2:78,3:92,4:150,5:96,6:92,7:92,8:86}
         for col,width in compact_widths.items():
             self.table.setColumnWidth(col,width)
         hh.setMinimumSectionSize(24)
         # Reorder sections visually only; storage/data mapping stays untouched.
-        desired=[0,1,2,3,8,5,6,4,7,9]
+        desired=[0,1,2,3,8,5,6,4,7]
         for visual,logical in enumerate(desired):
             current=hh.visualIndex(logical)
             if current != visual:
                 hh.moveSection(current,visual)
         # Compact widths modeled on the supplied reference screenshot.
-        widths={1:26,2:72,3:88,8:78,5:92,6:88,4:145,7:86,9:120}
+        widths={1:26,2:72,3:88,8:78,5:92,6:88,4:145,7:86}
         for logical,width in widths.items():
             self.table.setColumnWidth(logical,width)
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -1087,13 +1087,24 @@ class MainWindow(QMainWindow):
             if not v:return ''
             return time.strftime('%b %d %H:%M:%S %Y',time.localtime(float(v)))
         except Exception:return ''
+    @staticmethod
+    def _status_display(status,downloaded=0,total=0):
+        status=str(status)
+        if status=='Completed': return 'Complete'
+        if status=='Downloading':
+            total=int(total or 0); downloaded=int(downloaded or 0)
+            percent=min(100,max(0,int(downloaded*100/total))) if total>0 else 0
+            return 'Complete' if percent>=100 else f'{percent}%'
+        return status
+
     def _classic_row_values(self,r,speed=0,eta=0):
         desc=str(r['error'] or '') if str(r['status'])=='Failed' else ''
         last=r['started'] or r['updated'] or r['created']
         return [
-            str(r['filename']), self._queue_mark(r), self.size(r['total']), str(r['status']), desc,
+            str(r['filename']), self._queue_mark(r), self.size(r['total']),
+            self._status_display(r['status'],r['downloaded'],r['total']), desc,
             self.speed_text(speed or 0) if speed else '', self.date_text(last), self.date_text(r['created']),
-            self.eta_text(eta or 0) if eta else '', str(r['path'])
+            self.eta_text(eta or 0) if eta else ''
         ]
     def row_by_id(self,rid):
         for i in range(self.table.rowCount()):
@@ -1107,7 +1118,10 @@ class MainWindow(QMainWindow):
         # been observed, so render those live values without changing the model.
         vals=self._classic_row_values(rr,speed or 0,eta or 0)
         if total is not None: vals[2]=self.size(total)
-        if status is not None: vals[3]=status
+        if status is not None:
+            live_downloaded=rr['downloaded'] if downloaded is None else downloaded
+            live_total=rr['total'] if total is None else total
+            vals[3]=self._status_display(status,live_downloaded,live_total)
         sorting=self.table.isSortingEnabled();self.table.setSortingEnabled(False)
         for c,v in enumerate(vals):
             item=self.table.item(i,c)
