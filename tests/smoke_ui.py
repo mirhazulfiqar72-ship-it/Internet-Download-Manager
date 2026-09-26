@@ -30,6 +30,9 @@ try:
     w.storage.update(rid,status='Downloading',downloaded=50,total=100)
     w.update_row(rid,downloaded=50,total=100,status='Downloading')
     assert w.table.item(w.row_by_id(rid),3).text()=='50%'
+    w.update_row(rid,downloaded=100,total=100,status='Downloading')
+    assert w.table.item(w.row_by_id(rid),3).text()=='Complete'
+    w.update_row(rid,downloaded=50,total=100,status='Downloading')
     dlg=module.DownloadProgressDialog(w,rid)
     assert dlg.width()==512 and dlg.height()==448
     dlg.update_live(50,100,1000,1)
