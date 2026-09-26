@@ -43,6 +43,7 @@ try:
     # Download File Info must expose native close/minimize/maximize controls,
     # while fixed size keeps maximize non-functional and minimize available.
     info=module.AddDialog(w,'https://example.com/new-file.bin')
+    info._remote_probe_timer.stop()
     flags=info.windowFlags()
     assert flags & Qt.WindowMinimizeButtonHint
     assert flags & Qt.WindowMaximizeButtonHint
@@ -50,18 +51,29 @@ try:
     assert info.minimumSize()==info.maximumSize()
     info.close()
     doc_info=module.AddDialog(w,'https://example.com/quarterly-report.docx')
+    doc_info._remote_probe_timer.stop()
     assert doc_info.category.currentText()=='Documents'
+    assert Path(doc_info.save_as.text()).parent.name.lower()=='docoments'
     assert not doc_info.file_icon.pixmap(48,48).isNull()
     doc_info.close()
     program_info=module.AddDialog(w,'https://example.com/installer.exe')
+    program_info._remote_probe_timer.stop()
     assert program_info.category.currentText()=='Programs'
-    assert Path(program_info.save_as.text()).parent.name.lower()=='programs'
+    assert Path(program_info.save_as.text()).parent.name.lower()=='program'
     assert not program_info.file_icon.pixmap(48,48).isNull()
+    program_info._apply_remote_metadata({
+        'url':'https://example.com/installer.exe','size':87400000,
+        'filename':'InternetDownloadManager_Setup.exe','content_type':'application/octet-stream'
+    })
+    assert program_info.file_size.text()!='--'
+    assert Path(program_info.save_as.text()).parent.name.lower()=='program'
     program_info.close()
     picture_info=module.AddDialog(w,'https://example.com/download?id=42')
+    picture_info._remote_probe_timer.stop()
     assert picture_info.category.currentText()=='Pictures'
     assert Path(picture_info.save_as.text()).parent.name.lower()=='pictures'
     assert not picture_info.file_icon.pixmap(48,48).isNull()
+    assert Path(picture_info.save_as.text()).parent.name.lower()=='pictures'
     picture_info._apply_remote_metadata({
         'url':'https://example.com/download?id=42','size':123456,
         'filename':'downloaded-image.png','content_type':'image/png'
