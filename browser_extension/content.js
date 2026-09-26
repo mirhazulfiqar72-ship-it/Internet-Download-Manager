@@ -6,7 +6,7 @@
 
   // Catch clear file-download links before Chrome starts its own download.
   // Downloads without a recognizable link are still routed by downloads.onCreated.
-  const DOWNLOAD_FILE_EXT = /\.(?:7z|apk|bin|bz2|cab|csv|docx?|epub|exe|flac|flv|gz|iso|m4a|m4v|mkv|mov|mp3|mp4|mpeg|mpg|msi|ods|odt|ogg|pdf|pptx?|rar|rtf|tar|tgz|txt|wav|webm|wmv|xls[xm]?|zip)(?:$|[?#])/i;
+  const DOWNLOAD_FILE_EXT = /\.(?:7z|apk|appx|avif|bat|bin|bmp|bz2|cab|cmd|com|csv|deb|dmg|dll|docx?|epub|exe|flac|flv|gif|gz|heic|heif|ico|iso|jar|jpe?g|m4a|m4v|midi?|mkv|mov|mp3|mp4|mpeg|mpg|msi|msix|ods|odt|ogg|pdf|png|pptx?|psd|rar|raw|rpm|rtf|svg|tar|tgz|tiff?|txt|wav|webp|webm|wmv|xls[xm]?|xapk|zip)(?:$|[?#])/i;
   function shouldRouteDownload(anchor, href) {
     let url;
     try { url = new URL(href, location.href); } catch (_) { return false; }

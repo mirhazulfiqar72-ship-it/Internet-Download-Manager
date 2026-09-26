@@ -122,15 +122,19 @@ class AddressDialog(QDialog):
         self.url.returnPressed.connect(self.accept)
 
 class AddDialog(QDialog):
+    remote_metadata_ready=Signal(object)
+
     def __init__(self, parent=None, initial_url=''):
         super().__init__(parent); self.setWindowTitle('Download File Info'); self.setFixedSize(570,210); self.action='cancel'
+        self._user_save_as_edited=False; self._user_category_selected=False
+        self.remote_metadata_ready.connect(self._apply_remote_metadata)
         flags=(self.windowFlags() | Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint) & ~Qt.WindowContextHelpButtonHint
         self.setWindowFlags(flags)
         self.setObjectName('classicDownloadDialog')
         root=QVBoxLayout(self); root.setContentsMargins(10,8,10,10); root.setSpacing(8)
         content=QHBoxLayout(); form=QFormLayout(); form.setLabelAlignment(Qt.AlignRight|Qt.AlignVCenter); form.setHorizontalSpacing(6); form.setVerticalSpacing(4)
         self.url=QLineEdit(initial_url); self.url.setMinimumHeight(24); self.url.setPlaceholderText('https://example.com/file.zip'); form.addRow('URL',self.url)
-        self.category=QComboBox(); self.category.addItems(['Programs','Video','Audio','Documents','Archives','Other'])
+        self.category=QComboBox(); self.category.addItems(['Programs','Video','Audio','Documents','Archives','Pictures','Other'])
         catrow=QHBoxLayout(); catrow.setSpacing(4); catrow.addWidget(self.category); plus=QPushButton('+'); plus.setFixedSize(26,23); catrow.addWidget(plus); form.addRow('Category',catrow)
         self.folder=QLineEdit(str(DEFAULT_DIR)); self.filename=QLineEdit(''); self.filename.setPlaceholderText('Filename is detected from URL')
         self.folder.hide(); self.filename.hide()
@@ -144,7 +148,6 @@ class AddDialog(QDialog):
         self.file_icon=QLabel(); self.file_icon.setFixedSize(48,48); self.file_icon.setAlignment(Qt.AlignCenter); self.file_icon.setPixmap(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon).pixmap(40,40)); previewcol.addWidget(self.file_icon,0,Qt.AlignHCenter)
         self.file_size=QLabel('--'); self.file_size.setAlignment(Qt.AlignCenter); previewcol.addWidget(self.file_size)
         content.addLayout(previewcol)
-        QTimer.singleShot(50, self._probe_remote_size)
         root.addLayout(content)
         root.setAlignment(Qt.AlignTop)
         buttons=QHBoxLayout(); buttons.setContentsMargins(0,1,0,0); buttons.setSpacing(16); buttons.addStretch(1); later=QPushButton('Download Later'); start=QPushButton('Start Download'); cancel=QPushButton('Cancel'); start.setDefault(True)
@@ -173,17 +176,24 @@ class AddDialog(QDialog):
         self.priority=QSpinBox(); self.priority.setRange(0,100); self.priority.hide()
         self.schedule=QCheckBox(); self.schedule.hide(); self.sched=QDateTimeEdit(QDateTime.currentDateTime()); self.sched.hide()
         self.category.currentTextChanged.connect(self._set_category_folder)
+        self.category.activated.connect(lambda *_: setattr(self,'_user_category_selected',True))
         self.url.textChanged.connect(self.guess_name); self.guess_name(initial_url)
+        self._remote_probe_timer=QTimer(self); self._remote_probe_timer.setSingleShot(True); self._remote_probe_timer.setInterval(250); self._remote_probe_timer.timeout.connect(self._probe_remote_size)
+        self.url.textChanged.connect(lambda *_: self._remote_probe_timer.start())
         self.save_as.textChanged.connect(self._update_file_type_icon)
         self.save_as.textChanged.connect(lambda text:self.path_display.setText(str(Path(text).parent)))
+        self.save_as.textEdited.connect(lambda *_: setattr(self,'_user_save_as_edited',True))
+        self._update_file_type_icon()
     @staticmethod
     def _category_for_filename(name):
         ext=Path(name).suffix.lower()
         groups={
-            'Video':{'.mp4','.mkv','.webm','.avi','.mov','.m4v','.wmv','.flv','.mpeg','.mpg','.3gp'},
-            'Audio':{'.mp3','.m4a','.aac','.wav','.flac','.ogg','.opus','.wma'},
-            'Documents':{'.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.txt','.csv','.rtf','.odt','.epub'},
-            'Archives':{'.zip','.rar','.7z','.gz','.tar','.bz2','.xz','.tgz'}
+            'Programs':{'.exe','.msi','.msix','.appx','.apk','.xapk','.bat','.cmd','.com','.dll','.jar','.deb','.rpm','.dmg','.iso','.run','.ps1','.sh','.sys','.bin'},
+            'Video':{'.mp4','.mkv','.webm','.avi','.mov','.m4v','.wmv','.flv','.mpeg','.mpg','.3gp','.ts','.m2ts','.mts','.ogv'},
+            'Audio':{'.mp3','.m4a','.aac','.wav','.flac','.ogg','.opus','.wma','.aiff','.mid','.midi','.alac','.mka'},
+            'Documents':{'.pdf','.doc','.docx','.docm','.xls','.xlsx','.xlsm','.ppt','.pptx','.pptm','.txt','.csv','.rtf','.odt','.epub','.ods','.odp'},
+            'Archives':{'.zip','.rar','.7z','.gz','.tar','.bz2','.xz','.tgz'},
+            'Pictures':{'.jpg','.jpeg','.png','.gif','.bmp','.webp','.svg','.tif','.tiff','.ico','.heic','.heif','.avif','.raw','.psd'}
         }
         return next((category for category,extensions in groups.items() if ext in extensions),None)
 
@@ -207,8 +217,10 @@ class AddDialog(QDialog):
             if n:
                 picked=safe_filename(n)
                 self.filename.setText(picked)
-                detected=self._category_for_filename(picked)
-                if detected: self.category.setCurrentText(detected)
+                detected=self._category_for_filename(picked) or 'Other'
+                selected=self.category.currentText()
+                self.category.setCurrentText(detected)
+                if selected==detected: self._set_category_folder(detected)
                 self.save_as.setText(str(Path(self.folder.text()) / picked))
                 self.save_as.setCursorPosition(0)
                 self.path_display.setText(self.folder.text())
@@ -228,6 +240,7 @@ class AddDialog(QDialog):
     def browse(self):
         d=QFileDialog.getExistingDirectory(self,'Download folder',self.folder.text())
         if d:
+            self._user_save_as_edited=True
             self.folder.setText(d)
             self.save_as.setText(str(Path(d) / self.filename.text()))
             self.refresh_native_preview()
@@ -275,23 +288,78 @@ class AddDialog(QDialog):
     def _probe_remote_size(self):
         if getattr(self,'_media_mode',False): return
         url=self.url.text().strip()
-        if not url.lower().startswith(('http://','https://')):
-            self._update_file_type_icon()
-            return
+        if not url.lower().startswith(('http://','https://')): return
         def worker():
-            size=None
+            import mimetypes
+            from urllib.parse import unquote, urlsplit
+            metadata={'url':url,'size':None,'filename':'','content_type':''}
+
+            def read_headers(response, ranged=False):
+                headers=response.headers
+                metadata['content_type']=str(headers.get('Content-Type','')).split(';',1)[0].strip().lower()
+                content_range=headers.get('Content-Range','')
+                match=re.search(r'/([0-9]+)$',str(content_range))
+                if match:
+                    metadata['size']=int(match.group(1))
+                elif not ranged or response.status_code!=206:
+                    length=headers.get('Content-Length','')
+                    if str(length).isdigit(): metadata['size']=int(length)
+                disposition=headers.get('Content-Disposition','')
+                name=''
+                encoded=re.search(r"filename\*\s*=\s*UTF-8''([^;]+)",str(disposition),re.I)
+                plain=re.search(r'filename\s*=\s*"?([^";]+)',str(disposition),re.I)
+                if encoded: name=unquote(encoded.group(1).strip().strip('"'))
+                elif plain: name=plain.group(1).strip()
+                if not name:
+                    name=Path(unquote(urlsplit(response.url).path)).name
+                if name:
+                    metadata['filename']=safe_filename(name)
+                ctype=metadata['content_type']
+                if ctype and (not metadata['filename'] or not Path(metadata['filename']).suffix):
+                    extension=mimetypes.guess_extension(ctype,strict=False)
+                    extension={'.jpe':'.jpg'}.get(extension,extension)
+                    if extension:
+                        base=Path(metadata['filename']).stem if metadata['filename'] else 'download'
+                        metadata['filename']=safe_filename(base+extension)
+
             try:
-                r=requests.head(url, allow_redirects=True, timeout=(3,6))
-                v=r.headers.get('content-length')
-                if v and str(v).isdigit(): size=int(v)
+                with requests.head(url,allow_redirects=True,timeout=(3,6)) as response:
+                    read_headers(response)
             except Exception:
                 pass
-            def apply():
-                self._update_file_type_icon()
-                if size is not None:
-                    self.file_size.setText(self._format_bytes(size))
-            QTimer.singleShot(0, apply)
-        threading.Thread(target=worker, daemon=True).start()
+            if metadata['size'] is None or not Path(metadata['filename']).suffix:
+                try:
+                    headers={'Range':'bytes=0-0','Accept-Encoding':'identity'}
+                    with requests.get(url,headers=headers,stream=True,allow_redirects=True,timeout=(3,8)) as response:
+                        read_headers(response,ranged=True)
+                except Exception:
+                    pass
+            self.remote_metadata_ready.emit(metadata)
+        threading.Thread(target=worker,daemon=True).start()
+
+    def _apply_remote_metadata(self,metadata):
+        if not isinstance(metadata,dict) or metadata.get('url')!=self.url.text().strip(): return
+        size=metadata.get('size')
+        if size is not None and int(size)>=0:
+            self.file_size.setText(self._format_bytes(size))
+        filename=str(metadata.get('filename') or '').strip()
+        if filename and not self._user_save_as_edited:
+            content_type=str(metadata.get('content_type') or '').lower()
+            detected=self._category_for_filename(filename)
+            if not detected and content_type.startswith('image/'): detected='Pictures'
+            if not detected and content_type in {
+                'application/x-msdownload','application/vnd.microsoft.portable-executable',
+                'application/vnd.android.package-archive','application/x-apple-diskimage'
+            }: detected='Programs'
+            detected=detected or 'Other'
+            self.filename.setText(filename)
+            if not self._user_category_selected:
+                selected=self.category.currentText()
+                self.category.setCurrentText(detected)
+                if selected==detected: self._set_category_folder(detected)
+            self.save_as.setText(str(Path(self.folder.text())/filename))
+            self.path_display.setText(self.folder.text())
+        self._update_file_type_icon()
 
     def preview_file(self):
         QMessageBox.information(self,'Preview','Preview becomes available after the file is downloaded.')

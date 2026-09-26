@@ -44,6 +44,21 @@ try:
     assert doc_info.category.currentText()=='Documents'
     assert not doc_info.file_icon.pixmap(48,48).isNull()
     doc_info.close()
+    program_info=module.AddDialog(w,'https://example.com/installer.exe')
+    assert program_info.category.currentText()=='Programs'
+    assert Path(program_info.save_as.text()).parent.name.lower()=='programs'
+    assert not program_info.file_icon.pixmap(48,48).isNull()
+    program_info.close()
+    picture_info=module.AddDialog(w,'https://example.com/download?id=42')
+    assert picture_info.category.currentText()=='Pictures'
+    assert Path(picture_info.save_as.text()).parent.name.lower()=='pictures'
+    assert not picture_info.file_icon.pixmap(48,48).isNull()
+    picture_info._apply_remote_metadata({
+        'url':'https://example.com/download?id=42','size':123456,
+        'filename':'downloaded-image.png','content_type':'image/png'
+    })
+    assert picture_info.file_size.text()!='--'
+    picture_info.close()
 
     # A stale/deleted record that is not in the downloader table must not
     # trigger the duplicate dialog.  A current table row must still do so.

@@ -16,9 +16,13 @@ DEFAULTS = {
  'logins':[],'dial_enabled':False,'dial_name':'','dial_retries':0,'dial_delay':30,
  'sounds':{}
 }
-CATEGORIES={'Programs':('exe msi msix',''),'Video':('mp4 mkv webm avi mov m4v wmv flv mpeg mpg 3gp','Video'),
- 'Audio':('mp3 m4a aac wav flac ogg opus wma','Music'),'Documents':('pdf doc docx xls xlsx ppt pptx txt csv rtf odt epub','Documents'),
- 'Archives':('zip rar 7z gz tar bz2 xz tgz','Compressor'),'Other':('','')}
+CATEGORIES={'Programs':('exe msi msix appx apk xapk bat cmd com dll jar deb rpm dmg iso run ps1 sh sys bin','Programs'),
+ 'Video':('mp4 mkv webm avi mov m4v wmv flv mpeg mpg 3gp ts m2ts mts ogv','Video'),
+ 'Audio':('mp3 m4a aac wav flac ogg opus wma aiff mid midi alac mka','Music'),
+ 'Documents':('pdf doc docx docm xls xlsx xlsm ppt pptx pptm txt csv rtf odt epub ods odp','Documents'),
+ 'Archives':('zip rar 7z gz tar bz2 xz tgz','Compressor'),
+ 'Pictures':('jpg jpeg png gif bmp webp svg tif tiff ico heic heif avif raw psd','Pictures'),
+ 'Other':('','Other')}
 
 def load_options():
     data=copy.deepcopy(DEFAULTS)

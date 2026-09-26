@@ -5,6 +5,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({id:'idm-link',title:'Download link with Internet Download Manager',contexts:['link']});
     chrome.contextMenus.create({id:'idm-media',title:'Download video/audio with Internet Download Manager',contexts:['video','audio']});
+    chrome.contextMenus.create({id:'idm-image',title:'Download image with Internet Download Manager',contexts:['image']});
     chrome.contextMenus.create({id:'idm-page-media',title:'Download video/media from this page',contexts:['page']});
   });
 });
@@ -103,7 +104,7 @@ chrome.action.onClicked.addListener(tab => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   const tabId = tab && tab.id;
-  if (info.menuItemId === 'idm-media' && info.srcUrl) return handle({action:'directMedia', url:info.srcUrl}, tabId);
+  if ((info.menuItemId === 'idm-media' || info.menuItemId === 'idm-image') && info.srcUrl) return handle({action:'directMedia', url:info.srcUrl}, tabId);
   if (info.menuItemId === 'idm-link' && info.linkUrl) return handle({action:'directMedia', url:info.linkUrl}, tabId);
   if (info.menuItemId === 'idm-page-media') return handle({action:'pageMedia', url:info.pageUrl || (tab && tab.url) || ''}, tabId);
 });
