@@ -1123,6 +1123,18 @@ class MainWindow(QMainWindow):
         # Oldest first keeps each newly added download at the bottom of the list.
         self.table.sortItems(7,Qt.AscendingOrder)
         self.refresh_visibility()
+    def _download_row_icon(self,r):
+        filename=str(r['filename'] or '')
+        if Path(filename).suffix.lower() in {'.exe','.msi','.msix','.appx','.apk','.com','.scr'}:
+            try:
+                target=Path(str(r['path'] or ''))
+                if target.is_file():
+                    icon=QFileIconProvider().icon(QFileInfo(str(target)))
+                    if not icon.isNull():
+                        return icon
+            except Exception:
+                pass
+        return AddDialog._file_type_preview_icon(filename)
     def insert_row(self,r):
         sorting=self.table.isSortingEnabled(); self.table.setSortingEnabled(False)
         i=self.table.rowCount(); self.table.insertRow(i)
@@ -1133,7 +1145,7 @@ class MainWindow(QMainWindow):
                 it.setData(Qt.UserRole, float(r['created'] or 0))
             if c==0:
                 it.setData(Qt.UserRole,r['id'])
-                it.setIcon(AddDialog._file_type_preview_icon(str(r['filename'] or vals[0])))
+                it.setIcon(self._download_row_icon(r))
             self.table.setItem(i,c,it)
         self.table.setSortingEnabled(sorting)
     def _queue_mark(self,r):
@@ -1186,6 +1198,8 @@ class MainWindow(QMainWindow):
         for c,v in enumerate(vals):
             item=self.table.item(i,c)
             if item and item.text()!=v:item.setText(v)
+        if status is not None and str(status).lower() in {'completed','complete'} and self.table.item(i,0):
+            self.table.item(i,0).setIcon(self._download_row_icon(rr))
         if self.table.item(i,3): self.table.item(i,3).setToolTip(str(rr['error'] or ''))
         self.table.setSortingEnabled(sorting)
         if refresh_visibility:self.refresh_visibility()
